@@ -1,11 +1,11 @@
-from sqlalchemy import String, UniqueConstraint, Integer, ForeignKeyConstraint
+from sqlalchemy import String, UniqueConstraint, Integer, ForeignKeyConstraint, Time, PrimaryKeyConstraint
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 
 from constants import Base
-from tables import DepartmentMixin, CourseMixin
+from tables import DepartmentMixin, CourseMixin, SectionMixin
 
 
-class DepartmentNoIntrospect(Base, DepartmentMixin):
+class Department(Base, DepartmentMixin):
     __tablename__ = 'departments'
     abbreviation: Mapped[str] = mapped_column('abbreviation', String, nullable=False, primary_key=True)
     """This is a bi-directional relationship.  The Department class manages
@@ -23,13 +23,16 @@ class DepartmentNoIntrospect(Base, DepartmentMixin):
     # constraints (candidate keys).
     __table_args__ = (UniqueConstraint('name', name='departments_uk_01'),)
 
-    """The __init__ function appears to be special in SQLAlchemy.  I'm unable to 
-    leave that out when the class is initially declared, and then add it in afterwards.
-    So I'm defining the exact same __init__ method both for the start over as well
-    as the introspection case just to get past this interesting issue and move on."""
+    def __init__(self, *args):
+        """
+        This allows me to edit the __init__ instance method of the mixin without having to go to all the other child
+        classes and make sure they match up, all the provided arguments are automatically passed
+        to the mixin constructor, it can work with **kwargs aswell.
+        """
+        DepartmentMixin.__init__(self, *args)
 
 
-class CourseNoIntrospect(Base, CourseMixin):
+class Course(Base, CourseMixin):
     """A catalog entry.  Each course proposes to offer students who enroll in
     a section of the course an organized sequence of lessons and assignments
     aimed at teaching them specified skills."""
@@ -45,6 +48,7 @@ class CourseNoIntrospect(Base, CourseMixin):
     ForeignKey.  I show you how to do it in __table_args__ because you'll need
     that for the relationship from courses into sections.
     """
+    sections: Mapped[list['Section']] = relationship(back_populates='course')
     departmentAbbreviation: Mapped[str] = mapped_column('department_abbreviation', primary_key=True)
     department: Mapped['Department'] = relationship(back_populates='courses')
     courseNumber: Mapped[int] = mapped_column('course_number', Integer, nullable=False, primary_key=True)
@@ -58,3 +62,45 @@ class CourseNoIntrospect(Base, CourseMixin):
         UniqueConstraint('department_abbreviation', 'name', name='courses_uk_01'),
         ForeignKeyConstraint([departmentAbbreviation], ['departments.abbreviation'])
     )
+
+    def __init__(self, *args):
+        """
+        This allows me to edit the __init__ instance method of the mixin without having to go to all the other child
+        classes and make sure they match up, all the provided arguments are automatically passed
+        to the mixin constructor, it can work with **kwargs aswell.
+        """
+        CourseMixin.__init__(self, *args)
+
+
+class Section(Base, SectionMixin):
+    __tablename__ = 'sections'
+    departmentAbbreviation: Mapped[str] = mapped_column('department_abbreviation', String(10), primary_key=True)
+    courseNumber: Mapped[int] = mapped_column('course_number', Integer, nullable=False, primary_key=True)
+    course: Mapped['Course'] = relationship(back_populates='sections')
+    sectionNumber: Mapped[int] = mapped_column('section_number', Integer, nullable=False, primary_key=True)
+    semester: Mapped[str] = mapped_column('semester', String(10), nullable=False, primary_key=True)
+    sectionYear: Mapped[int] = mapped_column('section_year', Integer, nullable=False, primary_key=True)
+    building: Mapped[str] = mapped_column('building', String(6), nullable=False)
+    room: Mapped[int] = mapped_column('room', Integer, nullable=False)
+    schedule: Mapped[str] = mapped_column('schedule', String(6))
+    startTime: Mapped[Time] = mapped_column('start_time', Time)
+    instructor: Mapped[str] = mapped_column('instructor', String(80), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint(
+            'section_year', 'semester', 'schedule', 'start_time', 'building', 'room', name='sections_uk_01'
+        ),
+        UniqueConstraint('section_year', 'semester', 'schedule', 'start_time', 'instructor', name='sections_uk_02'),
+        ForeignKeyConstraint([departmentAbbreviation], ['departments.abbreviation']),
+        ForeignKeyConstraint(
+            [departmentAbbreviation, courseNumber], ['courses.department_abbreviation', 'courses.course_number']
+        ),
+    )
+
+    def __init__(self, *args):
+        """
+        This allows me to edit the __init__ instance method of the mixin without having to go to all the other child
+        classes and make sure they match up, all the provided arguments are automatically passed
+        to the mixin constructor, it can work with **kwargs aswell.
+        """
+        SectionMixin.__init__(self, *args)

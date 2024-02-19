@@ -1,9 +1,88 @@
 import logging
+from datetime import time
 
 from lib import Menu, Option, IntrospectionFactory
 from constants import menu_main, debug_select, engine, Session, metadata
 from constants import START_OVER, INTROSPECT_TABLES, REUSE_NO_INTROSPECTION
-from tables import Department, Course
+from tables import Department, Course, Section
+
+
+def add_section(session):
+    """
+    Prompt the user for the information for a new section and validate
+    the input to make sure that we do not create any duplicates.
+    :param session: The connection to the database.
+    :return:        None
+    """
+    print('Which course offers this section?')
+    course = select_course(session)
+
+    unique_primary_key: bool = False
+    unique_constraint_1: bool = False
+    unique_constraint_2: bool = False
+
+    section_number: int = -1
+    semester: str = ''
+    section_year: int = -1
+    building: str = ''
+    room: int = -1
+    schedule: str = ''
+    start_time: time = time()
+    instructor: str = ''
+
+    while not unique_primary_key or not unique_constraint_1 or not unique_constraint_2:
+        section_number = int(input('Section number--> '))
+        semester = input('Section semester--> ')
+        if semester not in ['Fall', 'Spring', 'Winter', 'Summer I', 'Summer II']:
+            print('Invalid section. Try again.')
+            continue
+        section_year = int(input('Section year-->'))
+        building = input('Section building-->')
+        if building not in ['EC', 'ECS', 'EN2', 'EN3', 'EN4', 'ET', 'SSPA']:
+            print('Invalid building. Try again.')
+            continue
+        room = int(input('Section room-->'))
+        schedule = input('Section schedule-->')
+        if schedule not in ['MW', 'TuTh', 'MWF', 'F', 'S']:
+            print('Invalid schedule. Try again.')
+            continue
+        start_time = time(*map(int, input('Section start time-->').split(':')))
+        instructor = input('Section instructor-->')
+
+        primary_key_count = session.query(Section).filter(
+            Section.sectionNumber == section_number, Section.semester == semester, Section.sectionYear == section_year,
+            Section.departmentAbbreviation == course.departmentAbbreviation, Section.courseNumber == course.courseNumber
+        ).count()
+        unique_primary_key = primary_key_count == 0
+        if not unique_primary_key:
+            print('We already have a section with that '
+                  'department abbreviation, course number, section number, semester, and year. Try again.')
+            continue
+
+        unique_constraint_1_count = session.query(Section).filter(
+            Section.sectionYear == section_year, Section.semester == semester, Section.schedule == schedule,
+            Section.startTime == start_time, Section.building == building, Section.room == room
+        ).count()
+        unique_constraint_1 = unique_constraint_1_count == 0
+        if not unique_constraint_1:
+            print(
+                'We already have a section with that year, semester, schedule, start time, building, & room. Try again.'
+            )
+            continue
+
+        unique_constraint_2_count = session.query(Section).filter(
+            Section.sectionYear == section_year, Section.semester == semester, Section.schedule == schedule,
+            Section.startTime == start_time, Section.instructor == instructor
+        ).count()
+        unique_constraint_2 = unique_constraint_2_count == 0
+        if not unique_constraint_2:
+            print('We already have a section with that year, semester, schedule, start time, & instructor. Try again.')
+            continue
+
+    new_section = Section(
+        course, section_number, semester, section_year, building, room, schedule, start_time, instructor
+    )
+    session.add(new_section)
 
 
 def add_department(session):
@@ -68,6 +147,43 @@ def add_course(session):
     session.add(course)
 
 
+def select_section(session):
+    """
+    Prompt the user for a specific section by the combination of department abbreviation, course number,
+    section number, semester, and section year.
+    :param session:    The connection to the database.
+    :return:        The selected department.
+    """
+    found: bool = False
+    department_abbreviation: str = ''
+    course_number: int = -1
+    section_number: int = -1
+    semester: str = ''
+    section_year: int = -1
+    while not found:
+        department_abbreviation = input('Section department abbreviation--> ')
+        course_number = int(input('Section course number--> '))
+        section_number = int(input('Section number--> '))
+        semester = input('Section semester--> ')
+        if semester not in ['Fall', 'Spring', 'Winter', 'Summer I', 'Summer II']:
+            print('Invalid section. Try again.')
+            continue
+        section_year = int(input('Section year-->'))
+
+        section_count = session.query(Section).filter(
+            Section.sectionNumber == section_number, Section.semester == semester, Section.sectionYear == section_year,
+            Section.departmentAbbreviation == department_abbreviation, Section.courseNumber == course_number
+        ).count()
+        found = section_count == 1
+        if not found:
+            print('No section with that combination. Try again.')
+    return_section: Section = session.query(Section).filter(
+        Section.sectionNumber == section_number, Section.semester == semester, Section.sectionYear == section_year,
+        Section.departmentAbbreviation == department_abbreviation, Section.courseNumber == course_number
+    ).first()
+    return return_section
+
+
 def select_department(session) -> Department:
     """
     Prompt the user for a specific department by the department abbreviation.
@@ -82,8 +198,8 @@ def select_department(session) -> Department:
         found = abbreviation_count == 1
         if not found:
             print('No department with that abbreviation.  Try again.')
-    return_student: Department = session.query(Department).filter(Department.abbreviation == abbreviation).first()
-    return return_student
+    return_department: Department = session.query(Department).filter(Department.abbreviation == abbreviation).first()
+    return return_department
 
 
 def select_course(session) -> Course:
@@ -92,7 +208,7 @@ def select_course(session) -> Course:
     Note, a similar query would be to select the course on the basis of the department
     abbreviation and the course name.
     :param session:    The connection to the database.
-    :return:        The selected student.
+    :return:        The selected course.
     """
     found: bool = False
     department_abbreviation: str = ''
@@ -112,6 +228,17 @@ def select_course(session) -> Course:
     return course
 
 
+def delete_section(session):
+    """
+    Prompt the user for a section by a combination of things and delete it.
+    :param session: The connection to the database.
+    :return:        None
+    """
+    print('deleting a section')
+    section = select_section(session)
+    session.delete(section)
+
+
 def delete_department(session):
     """
     Prompt the user for a department by the abbreviation and delete it.
@@ -126,6 +253,33 @@ def delete_department(session):
               f'Delete them first, then come back here to delete the department.')
     else:
         session.delete(department)
+
+
+def delete_course(session):
+    """
+    Prompt the user for a course by the combination of things and delete it.
+    :param session: The connection to the database.
+    :return:        None
+    """
+    print('deleting a course')
+    course = select_course(session)
+    n_section = session.query(Section).filter(Section.courseNumber == course.courseNumber).count()
+    if n_section > 0:
+        print(f'Sorry, there are {n_section} sections in that course. '
+              f'Delete them first, then come back here to delete the section.')
+    else:
+        session.delete(course)
+
+
+def list_sections(session):
+    """
+    List all sections, sorted by the course number and section.
+    :param session:     The connection to the database.
+    :return:            None
+    """
+    sections: [Section] = list(session.query(Section).order_by(Section.courseNumber, Section.sectionNumber))
+    for section in sections:
+        print(section)
 
 
 def list_departments(session):
@@ -226,6 +380,14 @@ def select_student_from_list(session):
     print('Selected student: ', returned_student)
 
 
+def list_course_sections(session):
+    course = select_course(session)
+    course_sections: [Section] = course.get_sections()
+    print('Sections for course: ' + str(course))
+    for course_section in course_sections:
+        print(course_section)
+
+
 def list_department_courses(session):
     department = select_department(session)
     dept_courses: [Course] = department.get_courses()
@@ -236,16 +398,16 @@ def list_department_courses(session):
 
 if __name__ == '__main__':
     print('Starting off')
-    logging.basicConfig()
+    # logging.basicConfig()
     # use the logging factory to create our first logger.
     # for more logging messages, set the level to logging.DEBUG.
     # logging_action will be the text string name of the logging level, for instance 'logging.INFO'
-    logging_action = debug_select.menu_prompt()
+    # logging_action = debug_select.menu_prompt()
     # eval will return the integer value of whichever logging level variable name the user selected.
-    logging.getLogger('sqlalchemy.engine').setLevel(logging_action)
+    # logging.getLogger('sqlalchemy.engine').setLevel(logging_action)
     # use the logging factory to create our second logger.
     # for more logging messages, set the level to logging.DEBUG.
-    logging.getLogger('sqlalchemy.pool').setLevel(logging_action)
+    # logging.getLogger('sqlalchemy.pool').setLevel(logging_action)
 
     # Prompt the user for whether they want to introspect the tables or create all over again.
     introspection_mode: int = IntrospectionFactory().introspection_type
