@@ -2,6 +2,8 @@
 from datetime import time
 from pprint import pprint
 
+from sqlalchemy import and_
+
 from utils import Menu, Option  # , IntrospectionFactory
 from utilities import check_unique
 from constants import REUSE_NO_INTROSPECTION, START_OVER
@@ -9,21 +11,21 @@ from constants import engine, Session, metadata, menu_main, add_menu, delete_men
 from tables import Course, Department, Major, StudentMajor, Student, Section, Enrollment
 
 
-def add():
+def add(_session):
     add_action: str = ''
     while add_action != add_menu.last_action():
         add_action = add_menu.menu_prompt()
         exec(add_action)
 
 
-def delete():
+def delete(_session):
     delete_action: str = ''
     while delete_action != delete_menu.last_action():
         delete_action = delete_menu.menu_prompt()
         exec(delete_action)
 
 
-def list_objects():
+def list_objects(_session):
     list_action: str = ''
     while list_action != list_menu.last_action():
         list_action = list_menu.menu_prompt()
@@ -39,21 +41,9 @@ def add_section(session):
     """
     print('Which course offers this section?')
     course = select_course(session)
-
-    unique_primary_key: bool = False
-    unique_constraint_1: bool = False
-    unique_constraint_2: bool = False
-
-    section_number: int = -1
-    semester: str = ''
-    section_year: int = -1
-    building: str = ''
-    room: int = -1
-    schedule: str = ''
-    start_time: time = time()
-    instructor: str = ''
-
-    while not unique_primary_key or not unique_constraint_1 or not unique_constraint_2:
+    violation = True
+    new_section = None
+    while violation:
         section_number = int(input('Section number--> '))
         semester = input('Section semester--> ')
         if semester not in ['Fall', 'Spring', 'Winter', 'Summer I', 'Summer II']:
@@ -71,40 +61,16 @@ def add_section(session):
             continue
         start_time = time(*map(int, input('Section start time-->').split(':')))
         instructor = input('Section instructor-->')
-
-        primary_key_count = session.query(Section).filter(
-            Section.sectionNumber == section_number, Section.semester == semester, Section.sectionYear == section_year,
-            Section.departmentAbbreviation == course.departmentAbbreviation, Section.courseNumber == course.courseNumber
-        ).count()
-        unique_primary_key = primary_key_count == 0
-        if not unique_primary_key:
-            print('We already have a section with that '
-                  'department abbreviation, course number, section number, semester, and year. Try again.')
-            continue
-
-        unique_constraint_1_count = session.query(Section).filter(
-            Section.sectionYear == section_year, Section.semester == semester, Section.schedule == schedule,
-            Section.startTime == start_time, Section.building == building, Section.room == room
-        ).count()
-        unique_constraint_1 = unique_constraint_1_count == 0
-        if not unique_constraint_1:
-            print(
-                'We already have a section with that year, semester, schedule, start time, building, & room. Try again.'
-            )
-            continue
-
-        unique_constraint_2_count = session.query(Section).filter(
-            Section.sectionYear == section_year, Section.semester == semester, Section.schedule == schedule,
-            Section.startTime == start_time, Section.instructor == instructor
-        ).count()
-        unique_constraint_2 = unique_constraint_2_count == 0
-        if not unique_constraint_2:
-            print('We already have a section with that year, semester, schedule, start time, & instructor. Try again.')
-            continue
-
-    new_section = Section(
-        course, section_number, semester, section_year, building, room, schedule, start_time, instructor
-    )
+        new_section = Section(
+            course, section_number, semester, section_year, building, room, schedule, start_time, instructor
+        )
+        violated_constraints = check_unique(Session, new_section)
+        if len(violated_constraints) > 0:
+            print('The following uniqueness constraints were violated:')
+            pprint(violated_constraints)
+            print('Please try again.')
+        else:
+            violation = False
     session.add(new_section)
 
 
@@ -129,6 +95,8 @@ def select_section(session):
     :param session:    The connection to the database.
     :return:        The selected department.
     """
+    if input('Do you want to use the custom select section (Y/N)? ').lower() == 'y':
+        return select_section_custom(session)
     found: bool = False
     department_abbreviation: str = ''
     course_number: int = -1
@@ -159,7 +127,15 @@ def select_section(session):
     return return_section
 
 
-def list_sections(session):
+def select_section_custom(session):
+    sections: [Section] = list(session.query(Section).order_by(Section.courseNumber, Section.sectionNumber))
+    for i, section in enumerate(sections):
+        print(f'{i + 1}. {section.departmentAbbreviation} {section.courseNumber} {section.sectionNumber}')
+    choice = int(input('Which section do you want? ')) - 1
+    return sections[choice]
+
+
+def list_section(session):
     """
     List all sections, sorted by the course number and section.
     :param session:     The connection to the database.
@@ -189,11 +165,11 @@ def add_department(session: Session):
     office: int = -1
     description: str = ''
     while (
-            not unique_name or
-            not unique_abbreviation or
-            not unique_chair_name or
-            not unique_building_office or
-            not unique_description
+        not unique_name or
+        not unique_abbreviation or
+        not unique_chair_name or
+        not unique_building_office or
+        not unique_description
     ):
         name = input('Department name--> ')
         abbreviation = input('Department abbreviation--> ')
@@ -330,27 +306,20 @@ def add_student(session: Session):
     :param session: The connection to the database.
     :return:        None
     """
-    unique_name: bool = False
-    unique_email: bool = False
-    last_name: str = ''
-    first_name: str = ''
-    email: str = ''
-    while not unique_email or not unique_name:
+    violation = True
+    new_student = None
+    while violation:
         last_name = input('Student last name--> ')
         first_name = input('Student first name-->')
         email = input('Student e-mail address--> ')
-        name_count: int = session.query(Student).filter(
-            Student.lastName == last_name, Student.firstName == first_name
-        ).count()
-        unique_name = name_count == 0
-        if not unique_name:
-            print('We already have a student by that name.  Try again.')
-        if unique_name:
-            email_count = session.query(Student).filter(Student.email == email).count()
-            unique_email = email_count == 0
-            if not unique_email:
-                print('We already have a student with that email address.  Try again.')
-    new_student = Student(last_name, first_name, email)
+        new_student = Student(last_name, first_name, email)
+        violated_constraints = check_unique(Session, new_student)
+        if len(violated_constraints) > 0:
+            print('The following uniqueness constraints were violated:')
+            pprint(violated_constraints)
+            print('Please try again.')
+        else:
+            violation = False
     session.add(new_student)
 
 
@@ -381,21 +350,22 @@ def add_student_major(session):
 
 
 def add_student_section(session):
-    student: Student = select_student(session)
-    section: Section = select_section(session)
-    student_section_count: int = session.query(Enrollment).filter(
-        Enrollment.studentId == student.studentID,
-        Enrollment.departmentAbbreviation == section.departmentAbbreviation,
-        Enrollment.courseNumber == section.courseNumber,
-        Enrollment.sectionNumber == section.sectionNumber,
-        Enrollment.semester == section.semester,
-        Enrollment.sectionYear == section.sectionYear,
-    ).count()
-    unique_student_section: bool = student_section_count == 0
+    unique_student_section = False
+    student, section = None, None
     while not unique_student_section:
-        print('That student already has that section.  Try again.')
         student = select_student(session)
         section = select_section(session)
+        student_section_count: int = session.query(Enrollment).filter(
+            Enrollment.studentId == student.studentID,
+            Enrollment.departmentAbbreviation == section.departmentAbbreviation,
+            Enrollment.courseNumber == section.courseNumber,
+            Enrollment.sectionNumber == section.sectionNumber,
+            Enrollment.semester == section.semester,
+            Enrollment.sectionYear == section.sectionYear,
+        ).count()
+        unique_student_section: bool = student_section_count == 0
+        if not unique_student_section:
+            print('That student already has that section.  Try again.')
     student.add_section(section)
     session.add(student)
     session.flush()
@@ -428,21 +398,22 @@ def add_major_student(session):
 
 
 def add_section_student(session):
-    section: Section = select_section(session)
-    student: Student = select_student(session)
-    student_section_count: int = session.query(Enrollment).filter(
-        Enrollment.studentId == student.studentID,
-        Enrollment.departmentAbbreviation == section.departmentAbbreviation,
-        Enrollment.courseNumber == section.courseNumber,
-        Enrollment.sectionNumber == section.sectionNumber,
-        Enrollment.semester == section.semester,
-        Enrollment.sectionYear == section.sectionYear,
-    ).count()
-    unique_student_section: bool = student_section_count == 0
+    unique_student_section = False
+    section, student = None, None
     while not unique_student_section:
-        print('That section already has that student.  Try again.')
         section = select_section(session)
         student = select_student(session)
+        student_section_count: int = session.query(Enrollment).filter(
+            Enrollment.studentId == student.studentID,
+            Enrollment.departmentAbbreviation == section.departmentAbbreviation,
+            Enrollment.courseNumber == section.courseNumber,
+            Enrollment.sectionNumber == section.sectionNumber,
+            Enrollment.semester == section.semester,
+            Enrollment.sectionYear == section.sectionYear,
+        ).count()
+        unique_student_section: bool = student_section_count == 0
+        if not unique_student_section:
+            print('That section already has that student.  Try again.')
     section.add_student(student)
     session.add(section)
     session.flush()
@@ -676,12 +647,13 @@ def list_student_section(session: Session):
         Enrollment, Student.studentID == Enrollment.studentId
     ).join(
         Section, Enrollment.departmentAbbreviation == Section.departmentAbbreviation,
+    ).filter(
+        Student.studentID == student.studentID,
+        Enrollment.departmentAbbreviation == Section.departmentAbbreviation,
         Enrollment.courseNumber == Section.courseNumber,
         Enrollment.sectionNumber == Section.sectionNumber,
         Enrollment.semester == Section.semester,
         Enrollment.sectionYear == Section.sectionYear
-    ).filter(
-        Student.studentID == student.studentID
     ).add_columns(
         Student.lastName, Student.firstName, Section.courseNumber, Section.sectionNumber
     ).all()
@@ -694,11 +666,13 @@ def list_student_section(session: Session):
 def list_section_student(session: Session):
     section: Section = select_section(session)
     recs = session.query(Section).join(
-        Enrollment, Enrollment.departmentAbbreviation == Section.departmentAbbreviation,
-        Enrollment.courseNumber == Section.courseNumber,
-        Enrollment.sectionNumber == Section.sectionNumber,
-        Enrollment.semester == Section.semester,
-        Enrollment.sectionYear == Section.sectionYear
+        Enrollment, and_(
+            Enrollment.departmentAbbreviation == Section.departmentAbbreviation,
+            Enrollment.courseNumber == Section.courseNumber,
+            Enrollment.sectionNumber == Section.sectionNumber,
+            Enrollment.semester == Section.semester,
+            Enrollment.sectionYear == Section.sectionYear
+        )
     ).join(
         Student, Enrollment.studentId == Student.studentID
     ).filter(
@@ -706,7 +680,8 @@ def list_section_student(session: Session):
         Section.courseNumber == section.courseNumber,
         Section.sectionNumber == section.sectionNumber,
         Section.semester == section.semester,
-        Section.sectionYear == section.sectionYear
+        Section.sectionYear == section.sectionYear,
+        Enrollment.studentId == Student.studentID
     ).add_columns(
         Student.lastName, Student.firstName, Section.courseNumber, Section.sectionNumber
     ).all()
@@ -828,6 +803,9 @@ def boilerplate(session):
     )
     major1: Major = Major(department, 'Computer Science', 'Fun with blinking lights')
     major2: Major = Major(department, 'Computer Engineering', 'Much closer to the silicon')
+    course1 = Course(department, 323, 'Databases', 'SQL, MongoDB, relational', 6)
+    course2 = Course(department, 328, 'Algorithms', 'Divide and Conquer, Greedy, NP Complete', 3)
+    section1 = Section(course1, 1, 'Fall', 2024, 'VEC', 416, 'MW', time(9), 'David Brown')
     student1: Student = Student('Brown', 'David', 'david.brown@gmail.com')
     student2: Student = Student('Brown', 'Mary', 'marydenni.brown@gmail.com')
     student3: Student = Student('Disposable', 'Bandit', 'disposable.bandit@gmail.com')
@@ -837,6 +815,9 @@ def boilerplate(session):
     session.add(department)
     session.add(major1)
     session.add(major2)
+    session.add(course1)
+    session.add(course2)
+    session.add(section1)
     session.add(student1)
     session.add(student2)
     session.add(student3)
@@ -855,7 +836,6 @@ def session_rollback():
 
 
 if __name__ == '__main__':
-    # TODO: check_unique, currently in add_course, maybe add to the other 8 add functions?
     print('Starting off')
     # logging.basicConfig()
     # use the logging factory to create our first logger.
@@ -870,7 +850,7 @@ if __name__ == '__main__':
 
     # Prompt the user for whether they want to introspect the tables or create all over again.
     # introspection_mode: int = IntrospectionFactory().introspection_type
-    introspection_mode: int = 0
+    introspection_mode: int = 2
     if introspection_mode == START_OVER:
         print('starting over')
         # create the SQLAlchemy structure that contains all the metadata, regardless of the introspection choice.
