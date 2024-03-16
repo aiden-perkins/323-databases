@@ -1,4 +1,4 @@
-from Option import Option
+from utils import Option
 
 
 class Menu:
@@ -31,23 +31,23 @@ class Menu:
             index: int = 0                      # Option counter for display purposes
             for option in self.options:         # Show the list of options
                 index += 1                      # Remember which option we're showing
-                print("%3d - %s" % (index, option.get_prompt()))
+                print('%3d - %s' % (index, option.get_prompt()))
             try:                                # Protect from non-integer input
                 final = int(input('-->'))
                 if final < 1 or final > n_options:  # Protect from out of range input
-                    print("Choice is out of range, try again.")
+                    print('Choice is out of range, try again.')
                     results = False
                 else:
                     results = True
             except ValueError:
-                print("Not a valid integer, try again.")
+                print('Not a valid integer, try again.')
         return self.options[final - 1].get_action()
 
     def last_action(self):
         """
         Find the last action in the menu.  By convention, this is the
         option that exits from this menu.  It does not have to be literally
-        "exit", it could be any operation, including "pass".  But it
+        'exit', it could be any operation, including 'pass'.  But it
         signifies that the user has elected to quit.  At least so goes
         the normal convention.
         :return:    The text of the very last action in the options list.

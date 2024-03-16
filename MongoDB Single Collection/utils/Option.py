@@ -15,5 +15,4 @@ class Option:
         return self.action
 
     def __str__(self):
-        return "prompt {prompt} calls for {action}".format(prompt=self.prompt,
-                                                           action=self.action)
+        return 'prompt {prompt} calls for {action}'.format(prompt=self.prompt, action=self.action)
