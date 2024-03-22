@@ -1,14 +1,23 @@
 import json
 
 import pymongo
+from pymongo import database, errors
+
+import utilities
 
 
 class Department:
-    def __init__(self, collection):
-        self._departments = collection
-        department_count = self._departments.count_documents({})
-        print(f'Departments in the collection so far: {department_count}')
-        self.create_departments_collection()
+    def __init__(self, collection_name: str, db: database.Database):
+        self._name = collection_name
+        self._departments = None
+        self._database = db
+        exisiting_collection = input(f'Do you want to use the exisisting {self._name} collection? (Y/N) ')
+        if exisiting_collection.lower() in ['yes', 'y']:
+            self._departments = self._database[self._name]
+            department_count = self._departments.count_documents({})
+            print(f'Departments in the collection so far: {department_count}')
+        else:
+            self.create_departments_collection()
 
     def __getattr__(self, item):
         """
@@ -17,6 +26,43 @@ class Department:
         return getattr(self._departments, item)
 
     def create_departments_collection(self):
+        validator = {
+            '$jsonSchema': {
+                'bsonType': 'object',
+                'title': 'departments',
+                'required': ['name', 'abbreviation', 'chair_name', 'building', 'office', 'description'],
+                'properties': {
+                    'name': {
+                        'bsonType': 'string',
+                        'minLength': 10,
+                        'maxLength': 50
+                    },
+                    'abbreviation': {
+                        'bsonType': 'string',
+                        'maxLength': 6
+                    },
+                    'chair_name': {
+                        'bsonType': 'string',
+                        'maxLength': 80
+                    },
+                    'building': {
+                        'enum': ['ANAC', 'CDC', 'DC', 'ECS', 'EN2', 'EN3', 'EN4', 'EN5', 'ET', 'HSCI', 'NUR', 'VEC']
+                    },
+                    'office': {
+                        'bsonType': 'int'
+                    },
+                    'description': {
+                        'bsonType': 'string',
+                        'minLength': 10,
+                        'maxLength': 80
+                    }
+                }
+            }
+        }
+        if self._name in self._database.list_collection_names():
+            self._database.drop_collection(self._name)
+        self._database.create_collection(self._name, validator=validator)
+        self._departments = self._database[self._name]
         departments_indexes = self._departments.index_information()
         if 'departments_name' in departments_indexes.keys():
             print('name index present.')
@@ -50,25 +96,8 @@ class Department:
             )
 
     def add_department(self):
-        unique_name: bool = False
-        unique_abbreviation: bool = False
-        unique_chair_name: bool = False
-        unique_building_office: bool = False
-        unique_description: bool = False
-
-        name: str = ''
-        abbreviation: str = ''
-        chair_name: str = ''
-        building: str = ''
-        office: int = -1
-        description: str = ''
-        while (
-            not unique_name or
-            not unique_abbreviation or
-            not unique_chair_name or
-            not unique_building_office or
-            not unique_description
-        ):
+        valid: bool = False
+        while not valid:
             name = input('Department name--> ')
             abbreviation = input('Department abbreviation--> ')
             chair_name = input('Department chair name--> ')
@@ -76,44 +105,20 @@ class Department:
             office = int(input('Department office--> '))
             description = input('Department description--> ')
 
-            name_count: int = self._departments.count_documents({'name': name})
-            unique_name = name_count == 0
-            if not unique_name:
-                print('We already have a department by that name.  Try again.')
-                continue
-
-            abbreviation_count = self._departments.count_documents({'abbreviation': abbreviation})
-            unique_abbreviation = abbreviation_count == 0
-            if not unique_abbreviation:
-                print('We already have a department with that abbreviation.  Try again.')
-                continue
-
-            chair_name_count = self._departments.count_documents({'chair_name': chair_name})
-            unique_chair_name = chair_name_count == 0
-            if not unique_chair_name:
-                print('We already have a department with that chair name.  Try again.')
-                continue
-
-            building_office_count = self._departments.count_documents({'building': building, 'office': office})
-            unique_building_office = building_office_count == 0
-            if not unique_building_office:
-                print('We already have a department with that building office.  Try again.')
-                continue
-
-            description_count = self._departments.count_documents({'description': description})
-            unique_description = description_count == 0
-            if not unique_description:
-                print('We already have a department with that description.  Try again.')
-                continue
-
-        self._departments.insert_one({
-            'name': name,
-            'abbreviation': abbreviation,
-            'chair_name': chair_name,
-            'building': building,
-            'office': office,
-            'description': description
-        })
+            try:
+                document = {
+                    'name': name,
+                    'abbreviation': abbreviation,
+                    'chair_name': chair_name,
+                    'building': building,
+                    'office': office,
+                    'description': description
+                }
+                utilities.check_all_unique(self._departments, document)
+                self._departments.insert_one(document)
+                valid = True
+            except (errors.WriteError, errors.DuplicateKeyError) as exception:
+                print(utilities.print_exception(exception))
 
     def select_department(self):
         found: bool = False

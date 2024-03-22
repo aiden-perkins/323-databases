@@ -52,15 +52,15 @@ if __name__ == '__main__':
     cluster = f'mongodb+srv://{username}:{passwd}@{deployment}.{cluster_hash}.mongodb.net/?retryWrites=true&w=majority'
     client = MongoClient(cluster)
     print(client.list_database_names())
-    database = client['SingleCollection']
+    database = client['Schema&Uniqueness']
     print(database.list_collection_names())
 
-    students = Student(database['students'])
+    students = Student('students', database)
     # I'm using this instead of pprint because I personally think pprint is ugly and harder to read, json.dumps is
     # normally used for writing to config files or storage, but it's also useful here for a clean viewing experience.
     print(json.dumps(students.index_information(), indent=4))
 
-    departments = Department(database['departments'])
+    departments = Department('departments', database)
     print(json.dumps(departments.index_information(), indent=4))
 
     main_action: str = ''

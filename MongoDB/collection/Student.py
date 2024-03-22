@@ -1,14 +1,23 @@
 import json
 
 import pymongo
+from pymongo import database, errors
+
+import utilities
 
 
 class Student:
-    def __init__(self, collection):
-        self._students = collection
-        student_count = self._students.count_documents({})
-        print(f'Students in the collection so far: {student_count}')
-        self.create_students_collection()
+    def __init__(self, collection_name: str, db: database.Database):
+        self._name = collection_name
+        self._students = None
+        self._database = db
+        exisiting_collection = input(f'Do you want to use the exisisting {self._name} collection? (Y/N) ')
+        if exisiting_collection.lower() in ['yes', 'y']:
+            self._students = self._database[self._name]
+            student_count = self._students.count_documents({})
+            print(f'Students in the collection so far: {student_count}')
+        else:
+            self.create_students_collection()
 
     def __getattr__(self, item):
         """
@@ -17,6 +26,28 @@ class Student:
         return getattr(self._students, item)
 
     def create_students_collection(self):
+        validator = {
+            '$jsonSchema': {
+                'bsonType': 'object',
+                'title': 'students',
+                'required': ['first_name', 'last_name', 'e_mail'],
+                'properties': {
+                    'first_name': {
+                        'bsonType': 'string'
+                    },
+                    'last_name': {
+                        'bsonType': 'string'
+                    },
+                    'e_mail': {
+                        'bsonType': 'string'
+                    }
+                }
+            }
+        }
+        if self._name in self._database.list_collection_names():
+            self._database.drop_collection(self._name)
+        self._database.create_collection(self._name, validator=validator)
+        self._students = self._database[self._name]
         students_indexes = self._students.index_information()
         if 'students_last_and_first_names' in students_indexes.keys():
             print('first and last name index present.')
@@ -32,36 +63,19 @@ class Student:
             self._students.create_index([('e_mail', pymongo.ASCENDING)], unique=True, name='students_e_mail')
 
     def add_student(self):
-        """
-        Add a new student, making sure that we don't put in any duplicates,
-        based on all the candidate keys (AKA unique indexes) on the
-        students collection.  Theoretically, we could query MongoDB to find
-        the uniqueness constraints in place, and use that information to
-        dynamically decide what searches we need to do to make sure that
-        we don't violate any of the uniqueness constraints.  Extra credit anyone?
-        :return:            None
-        """
-        # Create a 'pointer' to the students collection within the db database.
-        unique_name: bool = False
-        unique_email: bool = False
-        last_name: str = ''
-        first_name: str = ''
-        email: str = ''
-        while not unique_name or not unique_email:
+        valid: bool = False
+        while not valid:
             last_name = input('Student last name--> ')
             first_name = input('Student first name--> ')
             email = input('Student e-mail address--> ')
-            name_count: int = self._students.count_documents({'last_name': last_name, 'first_name': first_name})
-            unique_name = name_count == 0
-            if not unique_name:
-                print('We already have a student by that name.  Try again.')
-            if unique_name:
-                email_count = self._students.count_documents({'e_mail': email})
-                unique_email = email_count == 0
-                if not unique_email:
-                    print('We already have a student with that e-mail address.  Try again.')
-        # Build a new students document preparatory to storing it
-        self._students.insert_one({'last_name': last_name, 'first_name': first_name, 'e_mail': email})
+
+            try:
+                document = {'last_name': last_name, 'first_name': first_name, 'e_mail': email}
+                utilities.check_all_unique(self._students, document)
+                self._students.insert_one(document)
+                valid = True
+            except (errors.WriteError, errors.DuplicateKeyError) as exception:
+                print(utilities.print_exception(exception))
 
     def select_student(self):
         """
