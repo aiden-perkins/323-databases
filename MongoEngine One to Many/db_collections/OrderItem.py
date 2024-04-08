@@ -1,7 +1,7 @@
 import mongoengine
 from mongoengine import *
 
-from db_collections import Order
+from db_collections import Order, Product
 
 
 class OrderItem(Document):
@@ -12,7 +12,7 @@ class OrderItem(Document):
     # The  parent order that this is a member of.
     order = ReferenceField(Order, required=True, reverse_delete_rule=mongoengine.DENY)
     # This will be replaced by a reference to an instance of the Product class.
-    product = StringField(max_length=80, min_length=4, required=True)
+    product = ReferenceField(Product, required=True, reverse_delete_rule=mongoengine.DENY)
     # There is no hard and fast maximum value for quantity.
     quantity = IntField(required=True, min_value=1)
 
@@ -22,7 +22,7 @@ class OrderItem(Document):
         'indexes': [{'unique': True, 'fields': ['order', 'product'], 'name': 'order_items_pk'}]
     }
 
-    def __init__(self, order: Order, product: str, quantity: int, *args, **values):
+    def __init__(self, order: Order, product, quantity: int, *args, **values):
         """
         Create a new instance of OrderItem.
         :param order:       The order that this item belongs to.
@@ -37,9 +37,9 @@ class OrderItem(Document):
         self.quantity = quantity
 
     def __str__(self):
-        return f'OrderItem: Product: {self.product}, Qty: {str(self.quantity)}'
+        return f'OrderItem: Product: {self.product}, Qty: {str(self.quantity)}, Price: {self.product.buyPrice}'
 
-    def get_product(self):
+    def get_product(self) -> Product:
         """
         Return the identity of the product that this order item refers to.
         :return:    The identity of the ordered product.
@@ -51,6 +51,5 @@ class OrderItem(Document):
         Check if this product is the same product as the other OrderItem instance.
         :param other: The OrderItem that we are comparing to.
         :return: True if they are for the same product, false otherwise.
-        TODO: When Product becomes an object reference, this will need to be modified.
         """
-        return self.get_product() == other.get_product()
+        return self.get_product().productName == other.get_product().productName

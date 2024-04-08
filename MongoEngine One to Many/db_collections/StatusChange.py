@@ -15,10 +15,10 @@ class StatusChange(EmbeddedDocument):
     status = EnumField(Status, default=Status.IN_PROCESS, required=True)
     statusChangeDate = DateTimeField(db_field='status_change_date', required=True)
 
-    def __init__(self, status: Status, status_change_date: datetime, *args, **kwargs):
+    def __init__(self, status: Status, statusChangeDate: datetime, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.status = status
-        self.statusChangeDate = status_change_date
+        self.statusChangeDate = statusChangeDate
 
     def __str__(self):
         return f'Status Change Entry: New status: {self.status}, on date: {self.statusChangeDate}'

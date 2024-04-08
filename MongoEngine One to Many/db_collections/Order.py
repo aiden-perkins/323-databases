@@ -49,9 +49,9 @@ class Order(Document):
         this order, then this method will return a None.
         """
         if self.statusHistory:
-            return self.statusHistory[-1].status
+            return self.statusHistory[-1].status.value
 
-    def __init__(self, customer_name: str, order_date: datetime, sold_by: str, *args, **values):
+    def __init__(self, customerName: str, orderDate: datetime, soldBy: str, *args, **values):
         """
         Create a new instance of an Order object
         :param customerName:    The name of the customer who placed the order.  This should be
@@ -67,9 +67,9 @@ class Order(Document):
         super().__init__(*args, **values)
         if self.orderItems is None:
             self.orderItems = []  # initialize to no items in the order, yet.
-        self.customerName = customer_name
-        self.orderDate = order_date
-        self.soldBy = sold_by
+        self.customerName = customerName
+        self.orderDate = orderDate
+        self.soldBy = soldBy
 
     def __str__(self):
         """
@@ -78,7 +78,7 @@ class Order(Document):
         """
         results = f'Order: Placed by {self.customerName} placed on {self.orderDate} status: {self.get_current_status()}'
         for orderItem in self.orderItems:
-            results = results + '\n\t' + f'Item: {orderItem.product}'
+            results = results + '\n\t' + f'Item: {orderItem}'
         return results
 
     def add_item(self, item):

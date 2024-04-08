@@ -1,8 +1,8 @@
 from pymongo import monitoring
 
-from db_collections import Order, OrderItem, StatusChange
-from utils import Menu, Option, Utilities, CommandLogger, select_general, unique_general, prompt_for_date, log
-from menu_definitions import menu_main, add_select, list_select, select_select, delete_select, update_select
+from db_collections import Order, OrderItem, StatusChange, Product, PriceHistory
+from utils import Utilities, CommandLogger, select_general, unique_general, prompt_for_date, log
+from menu_definitions import *
 
 """
 This protects Order from deletions in OrderItem of any of the objects reference by Order
@@ -23,28 +23,12 @@ def menu_loop(menu: Menu):
         exec(action)
 
 
-def add():
-    menu_loop(add_select)
-
-
-def list_members():
-    menu_loop(list_select)
-
-
-def select():
-    menu_loop(select_select)
-
-
-def delete():
-    menu_loop(delete_select)
-
-
-def update():
-    menu_loop(update_select)
-
-
 def select_order() -> Order:
     return select_general(Order)
+
+
+def select_product() -> Product:
+    return select_general(Product)
 
 
 def select_order_item() -> OrderItem:
@@ -104,7 +88,37 @@ def add_order():
                 success = True
             except Exception as e:
                 print('Errors storing the new order:')
-                Utilities.print_exception(e)
+                print(Utilities.print_exception(e))
+
+
+def add_product():
+    """
+    Create a new Product instance.
+    :return: None
+    """
+    success: bool = False
+    while not success:
+        product_code = input('Product code--> ')
+        product_name = input('Product name--> ')
+        product_description = input('Product description--> ')
+        quantity_in_stock = int(input('Product quantity in stock--> '))
+        buy_price = input('Product buy price--> ')
+        msrp = input('Product msrp--> ')
+        new_product = Product(product_code, product_name, product_description, quantity_in_stock, buy_price, msrp)
+        violated_constraints = unique_general(new_product)
+        if len(violated_constraints) > 0:
+            for violated_constraint in violated_constraints:
+                print('Your input values violated constraint: ', violated_constraint)
+            print('try again')
+        else:
+            product_date = prompt_for_date('Date and time of the product: ')
+            new_product.priceHistory.append(PriceHistory(buy_price, product_date))
+            try:
+                new_product.save()
+                success = True
+            except Exception as e:
+                print('Errors storing the new product:')
+                print(Utilities.print_exception(e))
 
 
 def add_order_item():
@@ -118,7 +132,8 @@ def add_order_item():
     while not success:
         order = select_order()  # Prompt the user for an order to operate on.
         # Create a new OrderItem instance.
-        new_order_item = OrderItem(order, input('Product Name --> '), int(input('Quantity --> ')))
+        product = select_product()
+        new_order_item = OrderItem(order, product, int(input('Quantity --> ')))
         # Make sure that this adheres to the existing uniqueness constraints.
         # I COULD use print_exception after MongoEngine detects any uniqueness constraint violations, but
         # MongoEngine will only report one uniqueness constraint violation at a time.  I want them all.
@@ -132,11 +147,28 @@ def add_order_item():
                 # we cannot add the OrderItem to the Order until it's been stored in the database.
                 new_order_item.save()
                 order.add_item(new_order_item)  # Add this OrderItem to the Order's MongoDB list of items.
+                product.add_item(new_order_item)
                 order.save()                    # Update the order in the database.
+                product.save()
                 success = True                  # Finally ready to call  it good.
             except Exception as e:
                 print('Exception trying to add the new item:')
                 print(Utilities.print_exception(e))
+
+
+def list_order():
+    for order in Order.objects:
+        print(order)
+
+
+def list_product():
+    for product in Product.objects:
+        print(product)
+
+
+def list_order_item():
+    for order_item in OrderItem.objects:
+        print(order_item)
 
 
 def update_order():
@@ -160,6 +192,28 @@ def update_order():
             print(VE)
 
 
+def update_product():
+    """
+    Change the price of an existing product by adding another element to the price history vector of the product.
+    :return: None
+    """
+    success: bool = False
+    while not success:
+        product = select_product()  # Find a product to modify.
+        price_history_date = prompt_for_date('Date and time of the price history: ')
+        new_price = input('Product new price--> ')
+        if float(new_price) < 0.01:
+            print('Must be 0.01 or higher')
+            continue
+        try:
+            product.change_price(PriceHistory(new_price, price_history_date))
+            product.save()
+            success = True
+        except ValueError as VE:
+            print('Attempted price change failed because:')
+            print(VE)
+
+
 def delete_order():
     """
     Delete an existing order from the database.
@@ -175,6 +229,19 @@ def delete_order():
         item.delete()
     # Now that all the items on the order are removed, we can safely remove the order itself.
     order.delete()
+
+
+def delete_product():
+    """
+    Delete an existing product from the database.
+    :return: None
+    """
+    product = select_product()
+    print(product.orderItems)
+    if product.orderItems:
+        print('This product has orders attached to it, delete those first and then try again.')
+        return
+    product.delete()
 
 
 def delete_order_item():

@@ -7,7 +7,7 @@ from menu_definitions import menu_logging
 
 
 log = logging.getLogger('MongoDB logger')
-log_level: int = eval(menu_logging.menu_prompt())
+log_level = menu_logging.menu_prompt()
 log.setLevel(log_level)
 logging.basicConfig(level=log_level)
 
