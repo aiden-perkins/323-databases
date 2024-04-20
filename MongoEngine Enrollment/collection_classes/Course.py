@@ -24,18 +24,22 @@ class Course(Document, CollectionInterface):
         # TODO: finish this method
         return ''
 
-    def add_document(self) -> None:
+    @staticmethod
+    def add_document() -> None:
         # TODO: finish this method
         pass
 
-    def delete_document(self) -> None:
+    @staticmethod
+    def delete_document() -> None:
         # TODO: finish this method
         pass
 
-    def list_documents(self) -> None:
+    @staticmethod
+    def list_documents() -> None:
         # TODO: finish this method
         pass
 
-    def select_document(self) -> Course:
+    @staticmethod
+    def select_document() -> Course:
         # TODO: finish this method
         pass

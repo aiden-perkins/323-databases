@@ -23,18 +23,22 @@ class PassFail(EmbeddedDocument, CollectionInterface):
     def __str__(self):
         return ''
 
-    def add_document(self) -> None:
+    @staticmethod
+    def add_document() -> None:
         # TODO: finish this method
         pass
 
-    def delete_document(self) -> None:
+    @staticmethod
+    def delete_document() -> None:
         # TODO: finish this method
         pass
 
-    def list_documents(self) -> None:
+    @staticmethod
+    def list_documents() -> None:
         # TODO: finish this method
         pass
 
-    def select_document(self) -> PassFail:
+    @staticmethod
+    def select_document() -> PassFail:
         # TODO: finish this method
         pass

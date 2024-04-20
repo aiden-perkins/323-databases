@@ -3,7 +3,7 @@ import os
 from pymongo import monitoring, errors
 from mongoengine import connect
 
-from utils import CommandLogger, Menu, main_menu
+from utils import CommandLogger, Menu, main_menu, add_menu, delete_menu, select_menu, list_menu
 
 
 def menu_loop(menu: Menu) -> None:
