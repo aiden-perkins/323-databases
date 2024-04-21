@@ -29,7 +29,7 @@ class Menu:
             print(self.prompt)                  # Display the menu prompt
             for idx, option in enumerate(self.options):         # Show the list of options
                 print(f'{idx + 1:3d} - {option.prompt}')
-            try:                                # Protect from non-integer input
+            try:  # Protect from non-integer input
                 final = int(input('--> '))
                 if 0 < final <= n_options:
                     break
