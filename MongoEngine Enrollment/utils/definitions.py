@@ -15,37 +15,37 @@ logging_menu = Menu('debug', 'Please select the logging level from the following
 ])
 
 main_menu = Menu('main', 'Please select one of the following options:', [
-    Option('Add new instance', 'menu_loop(add_menu)'),
-    Option('Delete existing instance', 'menu_loop(delete_menu)'),
-    Option('List existing instances', 'menu_loop(list_menu)'),
-    Option('Select existing instance', 'menu_loop(select_menu)'),
+    Option('Add new instance', 'utils.menu_loop(utils.add_menu)'),
+    Option('Delete existing instance', 'utils.menu_loop(utils.delete_menu)'),
+    Option('List existing instances', 'utils.menu_loop(utils.list_menu)'),
+    Option('Select existing instance', 'utils.menu_loop(utils.select_menu)'),
     Option('Exit', 'pass')
 ])
 
 # options for adding a new instance
 add_menu = Menu('add select', 'Which type of object do you want to add?:', [
     # TODO: add the options for all collections
-    Option('[Collection]', '[Collection].add()'),
+    Option('Department', 'collection_classes.Department.add()'),
     Option('Exit', 'pass')
 ])
 
 # options for deleting an existing instance
 delete_menu = Menu('delete select', 'Which type of object do you want to delete?:', [
     # TODO: add the options for all collections
-    Option('[Collection]', '[Collection].delete()'),
+    Option('Department', 'collection_classes.Department.delete()'),
     Option('Exit', 'pass')
 ])
 
 # options for listing the existing instances
 list_menu = Menu('list select', 'Which type of object do you want to list?:', [
     # TODO: add the options for all collections
-    Option('[Collection]', '[Collection].list()'),
+    Option('Department', 'collection_classes.Department.list()'),
     Option('Exit', 'pass')
 ])
 
 # options for testing the select functions
 select_menu = Menu('select select', 'Which type of object do you want to select:', [
     # TODO: add the options for all collections
-    Option('[Collection]', 'print([Collection].select())'),
+    Option('Department', 'print(collection_classes.Department.select())'),
     Option('Exit', 'pass')
 ])
