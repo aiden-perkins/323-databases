@@ -23,7 +23,7 @@ class Department(Document, CollectionInterface):
     meta = {
         'collection': 'departments',
         'indexes': [
-            {'unique': True, 'fields': [''], 'name': 'departments_uk_01'},
+            {'unique': True, 'fields': ['abbreviation'], 'name': 'departments_uk_01'},
         ]
     }
 
