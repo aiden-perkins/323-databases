@@ -3,16 +3,18 @@ from __future__ import annotations
 from mongoengine import *
 
 from utils import CollectionInterface
+from collection_classes import Major, Student
 
 
 class StudentMajor(EmbeddedDocument, CollectionInterface):
-    # TODO: add fields
+    student = ReferenceField(Student, required=True, reverse_delete_rule=DENY)
+    major = ReferenceField(Major, required=True, reverse_delete_rule=DENY)
+    declarationDate = DateField(db_field='declaration_date', required=True)
 
-    # TODO: add all the uniqueness constraints
     meta = {
         'collection': 'student_majors',
         'indexes': [
-            {'unique': True, 'fields': [''], 'name': 'student_majors_uk_01'},
+            {'unique': True, 'fields': ['student', 'major'], 'name': 'student_majors_uk_01'},
         ]
     }
 

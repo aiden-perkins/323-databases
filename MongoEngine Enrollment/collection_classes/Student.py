@@ -3,18 +3,23 @@ from __future__ import annotations
 from mongoengine import *
 
 from utils import CollectionInterface
-from collection_classes import Enrollment
+from collection_classes import Enrollment, StudentMajor
 
 
 class Student(Document, CollectionInterface):
-    # TODO: add fields
-    enrollments = EmbeddedDocumentListField(Enrollment, db_field='enrollment')
+    lastName = StringField(db_field='last_name', required=True)
+    firstName = StringField(db_field='first_name', required=True)
+    email = StringField(db_field='email', required=True)
 
-    # TODO: add all the uniqueness constraints
+    enrollments = EmbeddedDocumentListField(Enrollment, db_field='enrollment')
+    studentMajors = EmbeddedDocumentListField(StudentMajor, db_field='student_majors')
+
     meta = {
         'collection': 'students',
         'indexes': [
-            {'unique': True, 'fields': [''], 'name': 'students_uk_01'},
+            {'unique': True, 'fields': ['lastName', 'firstName'], 'name': 'students_uk_01'},
+            {'unique': True, 'fields': ['email'], 'name': 'students_uk_02'},
+            {'unique': True, 'fields': ['_id'], 'name': 'students_uk_03'}
         ]
     }
 

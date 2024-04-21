@@ -3,16 +3,18 @@ from __future__ import annotations
 from mongoengine import *
 
 from utils import CollectionInterface
+from collection_classes import Department
 
 
 class Major(Document, CollectionInterface):
-    # TODO: add fields
+    department = ReferenceField(Department, required=True, reverse_delete_rule=DENY)
+    name = StringField(db_field='name', required=True)
+    description = StringField(db_field='description', required=True)
 
-    # TODO: add all the uniqueness constraints
     meta = {
         'collection': 'majors',
         'indexes': [
-            {'unique': True, 'fields': [''], 'name': 'majors_uk_01'},
+            {'unique': True, 'fields': ['name'], 'name': 'majors_uk_01'},
         ]
     }
 

@@ -3,16 +3,23 @@ from __future__ import annotations
 from mongoengine import *
 
 from utils import CollectionInterface
+from collection_classes import Department, Section
 
 
 class Course(Document, CollectionInterface):
-    # TODO: add fields
+    department = ReferenceField(Department, required=True, reverse_delete_rule=DENY)
+    courseNumber = IntField(db_field='course_number', min_value=100, max_value=699, required=True)
+    courseName = StringField(db_field='course_name', required=True)
+    description = StringField(db_field='description', required=True)
+    units = IntField(db_field='units', min_value=1, max_value=5, required=True)
 
-    # TODO: add all the uniqueness constraints
+    sections = ListField(ReferenceField(Section))
+
     meta = {
         'collection': 'courses',
         'indexes': [
-            {'unique': True, 'fields': [''], 'name': 'courses_uk_01'},
+            {'unique': True, 'fields': ['department', 'courseNumber'], 'name': 'courses_uk_01'},
+            {'unique': True, 'fields': ['department', 'courseName'], 'name': 'courses_uk_02'}
         ]
     }
 

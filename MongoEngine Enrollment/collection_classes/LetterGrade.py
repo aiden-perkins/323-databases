@@ -6,14 +6,10 @@ from utils import CollectionInterface
 
 
 class LetterGrade(EmbeddedDocument, CollectionInterface):
-    # TODO: add fields
+    minSatisfactory = StringField(db_field='min_satisfactory', required=True)
 
-    # TODO: add all the uniqueness constraints
     meta = {
-        'collection': 'letter_grade',
-        'indexes': [
-            {'unique': True, 'fields': [''], 'name': 'letter_grade_uk_01'},
-        ]
+        'collection': 'letter_grade'
     }
 
     def __init__(self, *args, **kwargs):

@@ -6,14 +6,10 @@ from utils import CollectionInterface
 
 
 class PassFail(EmbeddedDocument, CollectionInterface):
-    # TODO: add fields
+    applicationDate = DateField(db_field='application_date', required=True)
 
-    # TODO: add all the uniqueness constraints
     meta = {
-        'collection': 'pass_fail',
-        'indexes': [
-            {'unique': True, 'fields': [''], 'name': 'pass_fail_uk_01'},
-        ]
+        'collection': 'pass_fail'
     }
 
     def __init__(self, *args, **kwargs):

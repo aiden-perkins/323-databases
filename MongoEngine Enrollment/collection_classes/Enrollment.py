@@ -3,20 +3,21 @@ from __future__ import annotations
 from mongoengine import *
 
 from utils import CollectionInterface
-from collection_classes import Section, PassFail, LetterGrade
+from collection_classes import Section, Student, PassFail, LetterGrade
 
 
 class Enrollment(EmbeddedDocument, CollectionInterface):
-    # TODO: fix the parameters in here because they are wrong
     section = ReferenceField(Section, required=True)
-    passFail = EmbeddedDocumentField(PassFail)
-    letterGrade = EmbeddedDocumentField(LetterGrade)
+    student = ReferenceField(Student, required=True, reverse_delete_rule=DENY)
+    passFail = EmbeddedDocumentField(PassFail, db_field='pass_fail')
+    letterGrade = EmbeddedDocumentField(LetterGrade, db_field='letter_grade')
 
-    # TODO: add all the uniqueness constraints
     meta = {
         'collection': 'enrollments',
         'indexes': [
-            {'unique': True, 'fields': [''], 'name': 'enrollments_uk_01'},
+            {'unique': True, 'fields': ['student', 'section'], 'name': 'enrollments_uk_01'},
+            {'unique': True, 'fields': ['section.semester', 'section.sectionYear', 'section.course', 'student'],
+             'name': 'enrollments_uk_02'}
         ]
     }
 
