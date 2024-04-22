@@ -2,19 +2,16 @@ from __future__ import annotations
 
 from mongoengine import *
 
-from utils import CollectionInterface
-
-
-class LetterGrade(EmbeddedDocument, CollectionInterface):
+class LetterGrade(EmbeddedDocument):
     minSatisfactory = StringField(db_field='min_satisfactory', required=True)
 
     meta = {
         'collection': 'letter_grade'
     }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, minSatisfactory, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # TODO: finish initializing variables
+        self.minSatisfactory = minSatisfactory
 
     def __str__(self):
         return ''
@@ -22,19 +19,37 @@ class LetterGrade(EmbeddedDocument, CollectionInterface):
     @staticmethod
     def add_document() -> None:
         # TODO: finish this method
-        pass
+        success: bool = False
+        while not success:
+            minSatisfactory = input('Department Abbreviation -->')
+
+            new_letterGrade = LetterGrade(minSatisfactory)
+            violated_constraints = unique_general(new_letterGrade)
+            if len(violated_constraints) > 0:
+                for violated_constraint in violated_constraints:
+                    print('Your input values violated constraint: ', violated_constraint)
+                print('try again')
+            else:
+                try:
+                    new_letterGrade.save()
+                    success = True
+                except Exception as e:
+                    print('Errors storing the new department:')
+                    print(print_exception(e))
 
     @staticmethod
     def delete_document() -> None:
         # TODO: finish this method
-        pass
+        letterGrade = LetterGrade.select_document()
+        letterGrade._instance.delete()  # probably won't work
 
     @staticmethod
     def list_documents() -> None:
         # TODO: finish this method
-        pass
+        for letterGrade in LetterGrade.objects:  # probably won't work
+            print(letterGrade)
 
     @staticmethod
     def select_document() -> LetterGrade:
         # TODO: finish this method
-        pass
+        return select_general(LetterGrade)

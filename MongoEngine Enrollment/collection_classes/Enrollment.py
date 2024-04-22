@@ -2,18 +2,15 @@ from __future__ import annotations
 
 from mongoengine import *
 
-from utils import CollectionInterface
-from collection_classes import Section, Student, PassFail, LetterGrade
+from collection_classes import Section, PassFail, LetterGrade
 
 
-class Enrollment(EmbeddedDocument, CollectionInterface):
+class Enrollment(EmbeddedDocument):
     section = ReferenceField(Section, required=True)
-    student = ReferenceField(Student, required=True, reverse_delete_rule=DENY)
     passFail = EmbeddedDocumentField(PassFail, db_field='pass_fail')
     letterGrade = EmbeddedDocumentField(LetterGrade, db_field='letter_grade')
 
     meta = {
-        'collection': 'enrollments',
         'indexes': [
             {'unique': True, 'fields': ['student', 'section'], 'name': 'enrollments_uk_01'},
             {'unique': True, 'fields': ['section.semester', 'section.sectionYear', 'section.course', 'student'],
@@ -33,20 +30,41 @@ class Enrollment(EmbeddedDocument, CollectionInterface):
     @staticmethod
     def add_document() -> None:
         # TODO: finish this method
-        pass
+        success: bool = False
+        while not success:
+            section = Section.select_document()
+            passFail = PassFail.select_document()
+            letterGrade = LetterGrade.select_document()
+
+            new_enrollment = Enrollment(section, passFail, letterGrade)
+            violated_constraints = unique_general(new_enrollment)
+            if len(violated_constraints) > 0:
+                for violated_constraint in violated_constraints:
+                    print('Your input values violated constraint: ', violated_constraint)
+                print('try again')
+            else:
+                # TODO: also add a major to the department so a department always has a major.
+                try:
+                    new_enrollment.save()
+                    success = True
+                except Exception as e:
+                    print('Errors storing the new department:')
+                    print(print_exception(e))
 
     @staticmethod
     def delete_document() -> None:
         # TODO: finish this method
-        pass
+        enrollment = Enrollment.select_document()
+        enrollment._instance.delete()  # probably won't work
 
     @staticmethod
     def list_documents() -> None:
         # TODO: finish this method
-        pass
+        for enrollment in Enrollment.objects:  # probably won't work
+            print(enrollment)
 
     @staticmethod
     def select_document() -> Enrollment:
         # TODO: finish this method
-        pass
+        return select_general(Enrollment)
 
