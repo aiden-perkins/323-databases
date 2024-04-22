@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from mongoengine import *
 
-from utils import CollectionInterface
+from utils import unique_general, print_exception, select_general, CollectionInterface
 from collection_classes import Department
 
 
@@ -18,30 +18,59 @@ class Major(Document, CollectionInterface):
         ]
     }
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(
+                self,
+                name: str, description: str,
+                *args, **kwargs
+    ) -> None:
         super().__init__(*args, **kwargs)
-        # TODO: finish initializing variables
+        self.name = name
+        self.description = description
 
     def __str__(self) -> str:
         # TODO: finish this method
-        return ''
+        return self.name
 
     @staticmethod
     def add_document() -> None:
-        # TODO: finish this method
-        pass
+        """
+        Create a new Major instance.
+        :return: None
+        """
+        success: bool = False
+        while not success:
+            name = input('Major name --> ')
+            description = input('Major description -->')
+
+            new_major = Major(name, description)
+            violated_constraints = unique_general(new_major)
+            if len(violated_constraints) > 0:
+                for violated_constraint in violated_constraints:
+                    print('Your input values violated constraint: ', violated_constraint)
+                print('try again')
+            else:
+                try:
+                    new_major.save()
+                    success = True
+                except Exception as e:
+                    print('Errors storing the new major:')
+                    print(print_exception(e))
+
 
     @staticmethod
     def delete_document() -> None:
-        # TODO: finish this method
-        pass
+        """
+        Delete an existing major from the database.
+        :return: None
+        """
+        major = Major.select_document()
+        major.delete()
 
     @staticmethod
     def list_documents() -> None:
-        # TODO: finish this method
-        pass
+        for major in Major.objects:
+            print(major)
 
     @staticmethod
     def select_document() -> Major:
-        # TODO: finish this method
-        pass
+        return select_general(Major)
