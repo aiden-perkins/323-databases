@@ -2,12 +2,11 @@ from __future__ import annotations
 
 from mongoengine import *
 
-from utils import (Semester, Building, Schedule, prompt_for_enum, unique_general, print_exception, select_general,
-                   CollectionInterface)
+from utils import Semester, Building, Schedule, prompt_for_enum, unique_general, print_exception, select_general
 from collection_classes import Course, Student
 
 
-class Section(Document, CollectionInterface):
+class Section(Document):
     course = ReferenceField(Course, required=True, reverse_delete_rule=DENY)
     sectionNumber = IntField(db_field='section_number', required=True)
     semester = EnumField(Semester, required=True)

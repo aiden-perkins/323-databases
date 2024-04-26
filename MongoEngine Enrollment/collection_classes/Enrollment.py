@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from mongoengine import *
+from mongoengine import EmbeddedDocument, EmbeddedDocumentField, ReferenceField
 
-from collection_classes import Section, PassFail, LetterGrade
+from collection_classes import Section, PassFail, LetterGrade, Student
+from utils import unique_general, print_exception, select_general
 
 
 class Enrollment(EmbeddedDocument):
@@ -13,8 +14,11 @@ class Enrollment(EmbeddedDocument):
     meta = {
         'indexes': [
             {'unique': True, 'fields': ['student', 'section'], 'name': 'enrollments_uk_01'},
-            {'unique': True, 'fields': ['section.semester', 'section.sectionYear', 'section.course', 'student'],
-             'name': 'enrollments_uk_02'}
+            {
+                'unique': True,
+                'fields': ['section.semester', 'section.sectionYear', 'section.course', 'student'],
+                'name': 'enrollments_uk_02'
+            }
         ]
     }
 
@@ -25,27 +29,31 @@ class Enrollment(EmbeddedDocument):
         self.letterGrade = letterGrade
 
     def __str__(self):
-        return ''
+        return f'{self._instance} is enrolled in {self.section}'
 
     @staticmethod
     def add_document() -> None:
-        # TODO: finish this method
         success: bool = False
         while not success:
+            student = Student.select_document()
             section = Section.select_document()
-            passFail = PassFail.select_document()
-            letterGrade = LetterGrade.select_document()
-
-            new_enrollment = Enrollment(section, passFail, letterGrade)
+            pass_fail = None
+            letter_grade = None
+            choice = int(input('Do you want pass fail (1) or letter grade (2)?'))
+            if choice == 1:
+                pass_fail = PassFail.select_document()
+            else:
+                letter_grade = LetterGrade.select_document()
+            new_enrollment = Enrollment(section, pass_fail, letter_grade)
             violated_constraints = unique_general(new_enrollment)
             if len(violated_constraints) > 0:
                 for violated_constraint in violated_constraints:
                     print('Your input values violated constraint: ', violated_constraint)
                 print('try again')
             else:
-                # TODO: also add a major to the department so a department always has a major.
                 try:
-                    new_enrollment.save()
+                    student.add_enrollment(new_enrollment)
+                    student.save()
                     success = True
                 except Exception as e:
                     print('Errors storing the new department:')
@@ -53,18 +61,17 @@ class Enrollment(EmbeddedDocument):
 
     @staticmethod
     def delete_document() -> None:
-        # TODO: finish this method
         enrollment = Enrollment.select_document()
-        enrollment._instance.delete()  # probably won't work
+        enrollment._instance.remove_enrollment(enrollment)
 
     @staticmethod
     def list_documents() -> None:
-        # TODO: finish this method
-        for enrollment in Enrollment.objects:  # probably won't work
-            print(enrollment)
+        for student in Student.objects:
+            for enrollment in student.enrollments:
+                print(enrollment)
 
     @staticmethod
     def select_document() -> Enrollment:
-        # TODO: finish this method
         return select_general(Enrollment)
 
+    # TODO: set_letter_grade(), set_pass_fail(), remove_pass_fail, remove_letter_grade

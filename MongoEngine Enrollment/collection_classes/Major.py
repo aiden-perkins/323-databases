@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from mongoengine import *
+from mongoengine import Document, ReferenceField, StringField, DENY
 
-from utils import unique_general, print_exception, select_general, CollectionInterface
-from collection_classes import Department
+from utils import unique_general, print_exception, select_general
+from collection_classes import Department, Student
 
 
-class Major(Document, CollectionInterface):
+class Major(Document):
     department = ReferenceField(Department, required=True, reverse_delete_rule=DENY)
     name = StringField(db_field='name', required=True)
     description = StringField(db_field='description', required=True)
@@ -18,12 +18,9 @@ class Major(Document, CollectionInterface):
         ]
     }
 
-    def __init__(
-                self,
-                name: str, description: str,
-                *args, **kwargs
-    ) -> None:
+    def __init__(self, department: Department, name: str, description: str, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+        self.department = department
         self.name = name
         self.description = description
 
@@ -39,10 +36,10 @@ class Major(Document, CollectionInterface):
         """
         success: bool = False
         while not success:
+            department = Department.select_document()
             name = input('Major name --> ')
             description = input('Major description -->')
-
-            new_major = Major(name, description)
+            new_major = Major(department, name, description)
             violated_constraints = unique_general(new_major)
             if len(violated_constraints) > 0:
                 for violated_constraint in violated_constraints:
@@ -56,7 +53,6 @@ class Major(Document, CollectionInterface):
                     print('Errors storing the new major:')
                     print(print_exception(e))
 
-
     @staticmethod
     def delete_document() -> None:
         """
@@ -64,6 +60,15 @@ class Major(Document, CollectionInterface):
         :return: None
         """
         major = Major.select_document()
+        for student in Student.objects:
+            for student_major in student.studentMajors:
+                if student_major.major.pk == major.pk:
+                    print('There is a student with this major, cannot delete this major.')
+                    return
+        if len(major.department.majors) == 1:
+            print('Cannot remove the only major from this department, add another one before deleting this one.')
+            return
+        major.department.remove_major(major)
         major.delete()
 
     @staticmethod

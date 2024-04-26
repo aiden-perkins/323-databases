@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from mongoengine import *
 
-from utils import unique_general, print_exception, select_general, CollectionInterface
+from utils import unique_general, print_exception, select_general
 from collection_classes import Enrollment, StudentMajor
 
 
-class Student(Document, CollectionInterface):
+class Student(Document):
     lastName = StringField(db_field='last_name', required=True)
     firstName = StringField(db_field='first_name', required=True)
     email = StringField(db_field='email', required=True)
@@ -100,13 +100,13 @@ class Student(Document, CollectionInterface):
                 self.enrollments.remove(old_enrollment)
                 return
 
-    def add_student_majors(self, new_student_major) -> None:
+    def add_student_major(self, new_student_major) -> None:
         for student_major in self.studentMajors:
             if new_student_major.pk == student_major.pk:
                 return
         self.studentMajors.append(new_student_major)
 
-    def remove_student_majors(self, old_student_major) -> None:
+    def remove_student_major(self, old_student_major) -> None:
         for student_major in self.studentMajors:
             if student_major.pk == old_student_major.pk:
                 self.studentMajors.remove(old_student_major)

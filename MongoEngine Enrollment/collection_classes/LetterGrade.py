@@ -1,37 +1,39 @@
 from __future__ import annotations
 
-from mongoengine import *
+from mongoengine import EmbeddedDocument, StringField
+
+from utils import print_exception, unique_general, select_general, Satisfactory, prompt_for_enum
+from collection_classes import Enrollment, Student
+
 
 class LetterGrade(EmbeddedDocument):
     minSatisfactory = StringField(db_field='min_satisfactory', required=True)
 
-    meta = {
-        'collection': 'letter_grade'
-    }
-
-    def __init__(self, minSatisfactory, *args, **kwargs):
+    def __init__(self, minSatisfactory: Satisfactory, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.minSatisfactory = minSatisfactory
 
     def __str__(self):
-        return ''
+        return f'{self._instance._instance} wants at least a {self.minSatisfactory} in {self._instance.section}'
 
     @staticmethod
     def add_document() -> None:
-        # TODO: finish this method
         success: bool = False
         while not success:
-            minSatisfactory = input('Department Abbreviation -->')
-
-            new_letterGrade = LetterGrade(minSatisfactory)
-            violated_constraints = unique_general(new_letterGrade)
+            enrollment = Enrollment.select_document()
+            min_satisfactory = prompt_for_enum(
+                'Select the minimum satisfactory grade: ', Satisfactory, 'min_satisfactory'
+            )
+            new_letter_grade = LetterGrade(min_satisfactory)
+            violated_constraints = unique_general(new_letter_grade)
             if len(violated_constraints) > 0:
                 for violated_constraint in violated_constraints:
                     print('Your input values violated constraint: ', violated_constraint)
                 print('try again')
             else:
                 try:
-                    new_letterGrade.save()
+                    enrollment.set_letter_grade(new_letter_grade)
+                    enrollment._instance.save()
                     success = True
                 except Exception as e:
                     print('Errors storing the new department:')
@@ -39,17 +41,16 @@ class LetterGrade(EmbeddedDocument):
 
     @staticmethod
     def delete_document() -> None:
-        # TODO: finish this method
-        letterGrade = LetterGrade.select_document()
-        letterGrade._instance.delete()  # probably won't work
+        letter_grade = LetterGrade.select_document()
+        letter_grade._instance.remove_letter_grade()
 
     @staticmethod
     def list_documents() -> None:
-        # TODO: finish this method
-        for letterGrade in LetterGrade.objects:  # probably won't work
-            print(letterGrade)
+        for student in Student.objects:
+            for enrollment in student.enrollments:
+                if enrollment.letterGrade:
+                    print(enrollment.letterGrade)
 
     @staticmethod
     def select_document() -> LetterGrade:
-        # TODO: finish this method
         return select_general(LetterGrade)

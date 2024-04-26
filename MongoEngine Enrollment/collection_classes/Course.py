@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from mongoengine import *
+from mongoengine import Document, ReferenceField, IntField, StringField, ListField, DENY
 
-from utils import CollectionInterface, unique_general, print_exception, select_general
+from utils import unique_general, print_exception, select_general
 from collection_classes import Department, Section
 
 
-class Course(Document, CollectionInterface):
+class Course(Document):
     department = ReferenceField(Department, required=True, reverse_delete_rule=DENY)
     courseNumber = IntField(db_field='course_number', min_value=100, max_value=699, required=True)
     courseName = StringField(db_field='course_name', required=True)
@@ -37,11 +37,8 @@ class Course(Document, CollectionInterface):
         self.description = description
         self.units = units
 
-
     def __str__(self) -> str:
-        # TODO: finish this method
-        return f'Department: {self.department}\nCourse number: {self.courseNumber}\nCourse name: {self.courseName}\n' \
-               f'Description: {self.description}\nUnits: {self.units}'
+        return f'{self.department}: {self.courseNumber} {self.courseName} ({self.units})'
 
     @staticmethod
     def add_document() -> None:
@@ -51,25 +48,23 @@ class Course(Document, CollectionInterface):
         """
         success: bool = False
         while not success:
-            department = input('Department Abbreviation -->')
-            courseNumber = int(input('Course Number -->'))
-            courseName = input('Course Name -->')
+            department = Department.select_document()
+            course_number = int(input('Course Number -->'))
+            course_name = input('Course Name -->')
             description = input('Description -->')
             units = int(input('Units -->'))
-
-            new_course = Course(department, courseNumber, courseName, description, units)
+            new_course = Course(department, course_number, course_name, description, units)
             violated_constraints = unique_general(new_course)
             if len(violated_constraints) > 0:
                 for violated_constraint in violated_constraints:
                     print('Your input values violated constraint: ', violated_constraint)
                 print('try again')
             else:
-                # Maybe add section so that a course always have atleast 1 section???
                 try:
                     new_course.save()
                     success = True
                 except Exception as e:
-                    print('Errors storing the new department:')
+                    print('Errors storing the new course:')
                     print(print_exception(e))
 
     @staticmethod
