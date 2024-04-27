@@ -1,5 +1,6 @@
 import io
 import datetime
+from enum import EnumType
 from pprint import pformat
 
 from mongoengine import NotUniqueError, ValidationError
@@ -7,7 +8,7 @@ from mongoengine import NotUniqueError, ValidationError
 from utils import Option, Menu
 
 
-def prompt_for_enum(prompt: str, cls, attribute_name: str):
+def prompt_for_enum(prompt: str, cls: EnumType) -> Menu:
     """
     MongoEngine attributes can be regulated with an enum.  If they are, the definition of
     that attribute will carry the list of choices allowed by the enum (as well as the enum
@@ -17,18 +18,16 @@ def prompt_for_enum(prompt: str, cls, attribute_name: str):
     :param prompt:          A text string telling the user what they are being prompted for.
     :param cls:             The class (not just the name) of the MongoEngine class that the
                             enumerated attribute belongs to.
-    :param attribute_name:  The NAME of the attribute that you want a value for.
     :return:                The enum class member that the user selected.
     """
-    attr = getattr(cls, attribute_name)  # Get the enumerated attribute.
-    if type(attr).__name__ == 'EnumField':  # Make sure that it is an enumeration.
+    if type(cls).__name__ == 'EnumType':
         enum_values = []
-        for choice in attr.choices:  # Build a menu option for each of the enum instances.
-            enum_values.append(Option(choice.value, choice))
+        for choice in cls:  # Build a menu option for each of the enum instances.
+            enum_values.append(Option(choice.name, choice))
         # Build an 'on the fly' menu and prompt the user for which option they want.
         return Menu('Enum Menu', prompt, enum_values).menu_prompt()
     else:
-        raise ValueError(f'This attribute is not an enum: {attribute_name}')
+        raise ValueError(f'This is not an enum: {cls}')
 
 
 def prompt_for_date(prompt: str) -> datetime:
@@ -121,12 +120,12 @@ def select_general(cls):
             else:
                 # It's not a reference, so prompt for the literal value.
                 # This works for string and numeric, but honestly, I should convert the string depending on the type.
-                filters[attribute_name] = input(f'search for {attribute_name} = --> ')
+                filters[attribute_name] = input(f'search for {attribute_name} --> ')
         # count the number of rows that meet that criteria.
         if cls.objects(**filters).count() == 1:
             return cls.objects(**filters).first()
         else:
-            print('Sorry, no rows found that match those criteria.  Try again.')
+            print('Sorry, no rows found that match those criteria. Try again.')
 
 
 def unique_general(instance):

@@ -26,6 +26,7 @@ class PassFail(EmbeddedDocument):
         while True:
             enrollment = None
             if not from_enrollment:
+                print('Select an enrollment: ')
                 enrollment = Enrollment.select_document()
             application_date = prompt_for_date('Date and time of the application: ')
             now = datetime.datetime.now()

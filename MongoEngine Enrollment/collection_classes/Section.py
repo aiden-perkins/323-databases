@@ -3,11 +3,11 @@ from __future__ import annotations
 from mongoengine import ReferenceField, DENY, IntField, EnumField, StringField, ListField, Document
 
 from utils import Semester, Building, Schedule, prompt_for_enum, unique_general, print_exception, select_general
-from collection_classes import Course, Student
+from collection_classes import Student, Course
 
 
 class Section(Document):
-    course = ReferenceField(Course, required=True, reverse_delete_rule=DENY)
+    course = ReferenceField('Course', required=True)
     number = IntField(required=True)
     semester = EnumField(Semester, required=True)
     year = IntField(required=True)
@@ -17,7 +17,7 @@ class Section(Document):
     startTime = IntField(db_field='start_time', min_value=800, max_value=1930, required=True)
     instructor = StringField(required=True)
 
-    students = ListField(ReferenceField(Student))
+    students = ListField(ReferenceField('Student'))
 
     meta = {
         'collection': 'sections',
@@ -39,13 +39,14 @@ class Section(Document):
 
     def __init__(
                 self,
-                number: int, semester: Semester, year: int, building: Building, room: int,
+                course: Course, number: int, semester: Semester, year: int, building: Building, room: int,
                 schedule: Schedule, startTime: int, instructor: str,
                 *args, **kwargs
     ) -> None:
         super().__init__(*args, **kwargs)
         if not self.students:
             self.students = []
+        self.course = course
         self.number = number
         self.semester = semester
         self.year = year
@@ -66,16 +67,18 @@ class Section(Document):
         """
         success: bool = False
         while not success:
-            number = int(input('Section number -->'))
-            semester = prompt_for_enum('Section semester -->', Semester, 'semester')
-            year = int(input('Section year -->'))
-            building = prompt_for_enum('Section building -->', Building, 'building')
-            room = int(input('Section room -->'))
-            schedule = prompt_for_enum('Section schedule --> ', Schedule, 'schedule')
-            start_time = int(input('Section start time -->'))
+            print('Select a course: ')
+            course = Course.select_document()
+            number = int(input('Section number --> '))
+            semester = prompt_for_enum('Section semester --> ', Semester)
+            year = int(input('Section year --> '))
+            building = prompt_for_enum('Section building --> ', Building)
+            room = int(input('Section room --> '))
+            schedule = prompt_for_enum('Section schedule --> ', Schedule)
+            start_time = int(input('Section start time --> '))
             instructor = input('Section instructor')
 
-            new_section = Section(number, semester, year, building, room, schedule, start_time, instructor)
+            new_section = Section(course, number, semester, year, building, room, schedule, start_time, instructor)
             violated_constraints = unique_general(new_section)
             if len(violated_constraints) > 0:
                 for violated_constraint in violated_constraints:
@@ -84,6 +87,8 @@ class Section(Document):
             else:
                 try:
                     new_section.save()
+                    course.add_section(new_section)
+                    course.save()
                     success = True
                 except Exception as e:
                     print('Errors storing the new section:')

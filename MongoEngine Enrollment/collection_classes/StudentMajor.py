@@ -8,7 +8,7 @@ from collection_classes import Major, Student
 
 
 class StudentMajor(EmbeddedDocument):
-    major = ReferenceField(Major, required=True, reverse_delete_rule=DENY)
+    major = ReferenceField('Major', required=True)
     declarationDate = DateField(db_field='declaration_date', required=True)
 
     meta = {
@@ -33,7 +33,9 @@ class StudentMajor(EmbeddedDocument):
         """
         success: bool = False
         while not success:
+            print('Select a major: ')
             major = Major.select_document()
+            print('Select a student: ')
             student = Student.select_document()
             declaration_date = prompt_for_date('Date and time of the declaration: ')
             now = datetime.datetime.now()

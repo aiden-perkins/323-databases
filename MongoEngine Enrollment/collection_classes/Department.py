@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from mongoengine import Document, StringField, IntField, EnumField, ListField, ReferenceField
 
+import collection_classes
 from utils import Building, prompt_for_enum, unique_general, print_exception, select_general
-from collection_classes import Course, Major
 
 
 class Department(Document):
@@ -14,8 +14,8 @@ class Department(Document):
     office = IntField(required=True)
     description = StringField(required=True, max_length=80)
 
-    courses = ListField(ReferenceField(Course))
-    majors = ListField(ReferenceField(Major))
+    courses = ListField(ReferenceField('Course'))
+    majors = ListField(ReferenceField('Major'))
 
     meta = {
         'collection': 'departments',
@@ -55,12 +55,12 @@ class Department(Document):
         """
         success: bool = False
         while not success:
-            name = input('Department name -->')
-            abbreviation = input('Department abbreviation -->')
-            chair_name = input('Department chair name -->')
-            building = prompt_for_enum('Department building: ', Building, 'building')
-            office = int(input('Department office -->'))
-            description = input('Department description -->')
+            name = input('Department name --> ')
+            abbreviation = input('Department abbreviation --> ')
+            chair_name = input('Department chair name --> ')
+            building = prompt_for_enum('Department building: ', Building)
+            office = int(input('Department office --> '))
+            description = input('Department description --> ')
 
             new_department = Department(name, abbreviation, chair_name, building, office, description)
             violated_constraints = unique_general(new_department)
@@ -101,25 +101,25 @@ class Department(Document):
     def select_document() -> Department:
         return select_general(Department)
 
-    def add_major(self, new_major: Major) -> None:
+    def add_major(self, new_major: collection_classes.Major) -> None:
         for major in self.majors:
             if new_major.pk == major.pk:
                 return
         self.majors.append(new_major)
 
-    def remove_major(self, old_major: Major) -> None:
+    def remove_major(self, old_major: collection_classes.Major) -> None:
         for major in self.majors:
             if major.pk == old_major.pk:
                 self.majors.remove(old_major)
                 return
 
-    def add_course(self, new_course: Course) -> None:
+    def add_course(self, new_course: collection_classes.Course) -> None:
         for course in self.courses:
             if new_course.pk == course.pk:
                 return
         self.courses.append(new_course)
 
-    def remove_course(self, old_course: Course) -> None:
+    def remove_course(self, old_course: collection_classes.Course) -> None:
         for course in self.courses:
             if course.pk == old_course.pk:
                 self.courses.remove(old_course)

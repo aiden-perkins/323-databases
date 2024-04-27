@@ -7,7 +7,7 @@ from collection_classes import Department, Student
 
 
 class Major(Document):
-    department = ReferenceField(Department, required=True, reverse_delete_rule=DENY)
+    department = ReferenceField('Department', required=True)
     name = StringField(required=True)
     description = StringField(required=True)
 
@@ -35,9 +35,10 @@ class Major(Document):
         """
         success: bool = False
         while not success:
+            print('Select a department: ')
             department = Department.select_document()
             name = input('Major name --> ')
-            description = input('Major description -->')
+            description = input('Major description --> ')
             new_major = Major(department, name, description)
             violated_constraints = unique_general(new_major)
             if len(violated_constraints) > 0:
@@ -47,6 +48,8 @@ class Major(Document):
             else:
                 try:
                     new_major.save()
+                    department.add_major(new_major)
+                    department.save()
                     success = True
                 except Exception as e:
                     print('Errors storing the new major:')

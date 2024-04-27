@@ -21,10 +21,9 @@ class LetterGrade(EmbeddedDocument):
         while True:
             enrollment = None
             if not from_enrollment:
+                print('Select an enrollment: ')
                 enrollment = Enrollment.select_document()
-            min_satisfactory = prompt_for_enum(
-                'Select the minimum satisfactory grade: ', Satisfactory, 'min_satisfactory'
-            )
+            min_satisfactory = prompt_for_enum('Select the minimum satisfactory grade: ', Satisfactory)
             new_letter_grade = LetterGrade(min_satisfactory)
             violated_constraints = unique_general(new_letter_grade)
             if len(violated_constraints) > 0:

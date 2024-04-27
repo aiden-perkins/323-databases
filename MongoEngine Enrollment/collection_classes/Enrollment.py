@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from mongoengine import EmbeddedDocument, EmbeddedDocumentField, ReferenceField
 
-from collection_classes import Section, PassFail, LetterGrade, Student
 from utils import unique_general, print_exception, select_general
+from collection_classes import Section, PassFail, LetterGrade, Student
 
 
 class Enrollment(EmbeddedDocument):
-    section = ReferenceField(Section, required=True)
-    passFail = EmbeddedDocumentField(PassFail, db_field='pass_fail')
-    letterGrade = EmbeddedDocumentField(LetterGrade, db_field='letter_grade')
+    section = ReferenceField('Section', required=True)
+    passFail = EmbeddedDocumentField('PassFail', db_field='pass_fail')
+    letterGrade = EmbeddedDocumentField('LetterGrade', db_field='letter_grade')
 
     meta = {
         'indexes': [
@@ -35,7 +35,9 @@ class Enrollment(EmbeddedDocument):
     def add_document() -> None:
         success: bool = False
         while not success:
+            print('Select a student: ')
             student = Student.select_document()
+            print('Select a section: ')
             section = Section.select_document()
             pass_fail = None
             letter_grade = None

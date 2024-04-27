@@ -7,13 +7,13 @@ from collection_classes import Department, Section
 
 
 class Course(Document):
-    department = ReferenceField('Department', required=True, reverse_delete_rule=DENY)
+    department = ReferenceField('Department', required=True)
     number = IntField(min_value=100, max_value=699, required=True)
     name = StringField(required=True)
     description = StringField(required=True)
     units = IntField(min_value=1, max_value=5, required=True)
 
-    sections = ListField(ReferenceField(Section))
+    sections = ListField(ReferenceField('Section'))
 
     meta = {
         'collection': 'courses',
@@ -47,11 +47,12 @@ class Course(Document):
         """
         success: bool = False
         while not success:
+            print('Select a department this course belongs to: ')
             department = Department.select_document()
-            number = int(input('Course number -->'))
-            name = input('Course name -->')
-            description = input('Course description -->')
-            units = int(input('Course units -->'))
+            number = int(input('Course number --> '))
+            name = input('Course name --> ')
+            description = input('Course description --> ')
+            units = int(input('Course units --> '))
             new_course = Course(department, number, name, description, units)
             violated_constraints = unique_general(new_course)
             if len(violated_constraints) > 0:
@@ -61,6 +62,8 @@ class Course(Document):
             else:
                 try:
                     new_course.save()
+                    department.add_course(new_course)
+                    department.save()
                     success = True
                 except Exception as e:
                     print('Errors storing the new course:')
@@ -72,6 +75,7 @@ class Course(Document):
         if course.sections:
             print('This course has sections attached to it, delete those first and then try again.')
             return
+        course.department.remove_course(course)
         course.delete()
 
     @staticmethod

@@ -11,8 +11,8 @@ class Student(Document):
     firstName = StringField(db_field='first_name', required=True)
     email = StringField(required=True)
 
-    enrollments = EmbeddedDocumentListField(Enrollment, db_field='enrollment')
-    studentMajors = EmbeddedDocumentListField(StudentMajor, db_field='student_majors')
+    enrollments = EmbeddedDocumentListField('Enrollment', db_field='enrollment')
+    studentMajors = EmbeddedDocumentListField('StudentMajor', db_field='student_majors')
 
     meta = {
         'collection': 'students',
@@ -43,9 +43,9 @@ class Student(Document):
         """
         success: bool = False
         while not success:
-            last_name = input('Student last name -->')
-            first_name = input('Student first name -->')
-            email = input('Student email -->')
+            last_name = input('Student last name --> ')
+            first_name = input('Student first name --> ')
+            email = input('Student email --> ')
             new_student = Student(last_name, first_name, email)
             violated_constraints = unique_general(new_student)
             if len(violated_constraints) > 0:
@@ -96,14 +96,16 @@ class Student(Document):
                 self.enrollments.remove(old_enrollment)
                 return
 
-    def add_student_major(self, new_student_major) -> None:
+    def add_student_major(self, new_student_major: StudentMajor) -> None:
         for student_major in self.studentMajors:
+            # TODO: StudentMajor objects do not have an _id, as they are embedded.
             if new_student_major.pk == student_major.pk:
                 return
         self.studentMajors.append(new_student_major)
 
-    def remove_student_major(self, old_student_major) -> None:
+    def remove_student_major(self, old_student_major: StudentMajor) -> None:
         for student_major in self.studentMajors:
+            # TODO: StudentMajor objects do not have an _id, as they are embedded.
             if student_major.pk == old_student_major.pk:
                 self.studentMajors.remove(old_student_major)
                 return
