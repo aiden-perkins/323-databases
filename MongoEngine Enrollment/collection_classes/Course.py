@@ -7,38 +7,37 @@ from collection_classes import Department, Section
 
 
 class Course(Document):
-    department = ReferenceField(Department, required=True, reverse_delete_rule=DENY)
-    courseNumber = IntField(db_field='course_number', min_value=100, max_value=699, required=True)
-    courseName = StringField(db_field='course_name', required=True)
-    description = StringField(db_field='description', required=True)
-    units = IntField(db_field='units', min_value=1, max_value=5, required=True)
+    department = ReferenceField('Department', required=True, reverse_delete_rule=DENY)
+    number = IntField(min_value=100, max_value=699, required=True)
+    name = StringField(required=True)
+    description = StringField(required=True)
+    units = IntField(min_value=1, max_value=5, required=True)
 
     sections = ListField(ReferenceField(Section))
 
     meta = {
         'collection': 'courses',
         'indexes': [
-            {'unique': True, 'fields': ['department', 'courseNumber'], 'name': 'courses_uk_01'},
-            {'unique': True, 'fields': ['department', 'courseName'], 'name': 'courses_uk_02'}
+            {'unique': True, 'fields': ['department', 'number'], 'name': 'courses_uk_01'},
+            {'unique': True, 'fields': ['department', 'name'], 'name': 'courses_uk_02'}
         ]
     }
 
     def __init__(
-            self,
-            department, courseNumber, courseName, description, units,
+            self, department: Department, number: int, name: str, description: str, units: int,
             *args, **kwargs
     ) -> None:
         super().__init__(*args, **kwargs)
         if not self.sections:
             self.sections = []
         self.department = department
-        self.courseNumber = courseNumber
-        self.courseName = courseName
+        self.number = number
+        self.name = name
         self.description = description
         self.units = units
 
     def __str__(self) -> str:
-        return f'{self.department}: {self.courseNumber} {self.courseName} ({self.units})'
+        return f'{self.department}: {self.number} {self.name} ({self.units})'
 
     @staticmethod
     def add_document() -> None:
@@ -49,11 +48,11 @@ class Course(Document):
         success: bool = False
         while not success:
             department = Department.select_document()
-            course_number = int(input('Course Number -->'))
-            course_name = input('Course Name -->')
-            description = input('Description -->')
-            units = int(input('Units -->'))
-            new_course = Course(department, course_number, course_name, description, units)
+            number = int(input('Course number -->'))
+            name = input('Course name -->')
+            description = input('Course description -->')
+            units = int(input('Course units -->'))
+            new_course = Course(department, number, name, description, units)
             violated_constraints = unique_general(new_course)
             if len(violated_constraints) > 0:
                 for violated_constraint in violated_constraints:

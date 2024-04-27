@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from mongoengine import *
+from mongoengine import StringField, EmbeddedDocumentListField, Document
 
 from utils import unique_general, print_exception, select_general
 from collection_classes import Enrollment, StudentMajor
@@ -9,7 +9,7 @@ from collection_classes import Enrollment, StudentMajor
 class Student(Document):
     lastName = StringField(db_field='last_name', required=True)
     firstName = StringField(db_field='first_name', required=True)
-    email = StringField(db_field='email', required=True)
+    email = StringField(required=True)
 
     enrollments = EmbeddedDocumentListField(Enrollment, db_field='enrollment')
     studentMajors = EmbeddedDocumentListField(StudentMajor, db_field='student_majors')
@@ -18,16 +18,11 @@ class Student(Document):
         'collection': 'students',
         'indexes': [
             {'unique': True, 'fields': ['lastName', 'firstName'], 'name': 'students_uk_01'},
-            {'unique': True, 'fields': ['email'], 'name': 'students_uk_02'},
-            {'unique': True, 'fields': ['_id'], 'name': 'students_uk_03'}
+            {'unique': True, 'fields': ['email'], 'name': 'students_uk_02'}
         ]
     }
 
-    def __init__(
-            self,
-            lastName: str, firstName: str, email: str,
-            *args, **kwargs
-    ) -> None:
+    def __init__(self, lastName: str, firstName: str, email: str, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         if not self.enrollments:
             self.enrollments = []
@@ -38,7 +33,7 @@ class Student(Document):
         self.email = email
 
     def __str__(self) -> str:
-        return f"{self.lastName}, {self.firstName}: {self.email}"
+        return f'{self.lastName}, {self.firstName}: {self.email}'
 
     @staticmethod
     def add_document() -> None:
@@ -48,10 +43,9 @@ class Student(Document):
         """
         success: bool = False
         while not success:
-            last_name = input("Student last name -->")
-            first_name = input("Student first name -->")
-            email = input("Student email -->")
-
+            last_name = input('Student last name -->')
+            first_name = input('Student first name -->')
+            email = input('Student email -->')
             new_student = Student(last_name, first_name, email)
             violated_constraints = unique_general(new_student)
             if len(violated_constraints) > 0:
@@ -90,12 +84,14 @@ class Student(Document):
 
     def add_enrollment(self, new_enrollment: Enrollment) -> None:
         for enrollment in self.enrollments:
+            # TODO: Enrollment objects do not have an _id, as they are embedded.
             if new_enrollment.pk == enrollment.pk:
                 return
         self.enrollments.append(new_enrollment)
 
     def remove_enrollment(self, old_enrollment: Enrollment) -> None:
         for enrollment in self.enrollments:
+            # TODO: Enrollment objects do not have an _id, as they are embedded.
             if enrollment.pk == old_enrollment.pk:
                 self.enrollments.remove(old_enrollment)
                 return

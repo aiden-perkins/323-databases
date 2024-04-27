@@ -36,6 +36,10 @@ class StudentMajor(EmbeddedDocument):
             major = Major.select_document()
             student = Student.select_document()
             declaration_date = prompt_for_date('Date and time of the declaration: ')
+            now = datetime.datetime.now()
+            if declaration_date <= now:
+                print(f'Declaration date must be before the current time ({now.strftime("%m-%d-%Y %H-%M-%S")})')
+                continue
             new_student_major = StudentMajor(major, declaration_date)
             violated_constraints = unique_general(new_student_major)
             if len(violated_constraints) > 0:
@@ -44,7 +48,7 @@ class StudentMajor(EmbeddedDocument):
                 print('try again')
             else:
                 try:
-                    student.add_major(new_student_major)
+                    student.add_student_major(new_student_major)
                     student.save()
                     success = True
                 except Exception as e:

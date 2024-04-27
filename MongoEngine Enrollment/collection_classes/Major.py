@@ -8,8 +8,8 @@ from collection_classes import Department, Student
 
 class Major(Document):
     department = ReferenceField(Department, required=True, reverse_delete_rule=DENY)
-    name = StringField(db_field='name', required=True)
-    description = StringField(db_field='description', required=True)
+    name = StringField(required=True)
+    description = StringField(required=True)
 
     meta = {
         'collection': 'majors',
@@ -25,7 +25,6 @@ class Major(Document):
         self.description = description
 
     def __str__(self) -> str:
-        # TODO: finish this method
         return self.name
 
     @staticmethod

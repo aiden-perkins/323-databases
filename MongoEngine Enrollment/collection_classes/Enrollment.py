@@ -16,13 +16,13 @@ class Enrollment(EmbeddedDocument):
             {'unique': True, 'fields': ['student', 'section'], 'name': 'enrollments_uk_01'},
             {
                 'unique': True,
-                'fields': ['section.semester', 'section.sectionYear', 'section.course', 'student'],
+                'fields': ['section.semester', 'section.year', 'section.course', 'student'],
                 'name': 'enrollments_uk_02'
             }
         ]
     }
 
-    def __init__(self, section: Section, passFail: PassFail, letterGrade: LetterGrade, *args, **kwargs):
+    def __init__(self, section: Section, passFail: PassFail, letterGrade: LetterGrade, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.section = section
         self.passFail = passFail
@@ -41,9 +41,9 @@ class Enrollment(EmbeddedDocument):
             letter_grade = None
             choice = int(input('Do you want pass fail (1) or letter grade (2)?'))
             if choice == 1:
-                pass_fail = PassFail.select_document()
+                pass_fail = PassFail.add_document(from_enrollment=True)
             else:
-                letter_grade = LetterGrade.select_document()
+                letter_grade = LetterGrade.add_document(from_enrollment=True)
             new_enrollment = Enrollment(section, pass_fail, letter_grade)
             violated_constraints = unique_general(new_enrollment)
             if len(violated_constraints) > 0:
@@ -56,7 +56,7 @@ class Enrollment(EmbeddedDocument):
                     student.save()
                     success = True
                 except Exception as e:
-                    print('Errors storing the new department:')
+                    print('Errors storing the new enrollment:')
                     print(print_exception(e))
 
     @staticmethod
@@ -74,4 +74,6 @@ class Enrollment(EmbeddedDocument):
     def select_document() -> Enrollment:
         return select_general(Enrollment)
 
-    # TODO: set_letter_grade(), set_pass_fail(), remove_pass_fail, remove_letter_grade
+    def switch_grade_option(self, pass_fail: PassFail = None, letter_grade: LetterGrade = None):
+        self.passFail = pass_fail
+        self.letterGrade = letter_grade

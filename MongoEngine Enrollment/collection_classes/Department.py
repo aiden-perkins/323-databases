@@ -7,12 +7,12 @@ from collection_classes import Course, Major
 
 
 class Department(Document):
-    name = StringField(db_field='name', required=True)
-    abbreviation = StringField(db_field='abbreviation', required=True, max_length=6)
+    name = StringField(required=True)
+    abbreviation = StringField(required=True, max_length=6)
     chairName = StringField(db_field='chair_name', required=True, max_length=80)
     building = EnumField(Building, required=True)
-    office = IntField(db_field='office', required=True)
-    description = StringField(db_field='description', required=True, max_length=80)
+    office = IntField(required=True)
+    description = StringField(required=True, max_length=80)
 
     courses = ListField(ReferenceField(Course))
     majors = ListField(ReferenceField(Major))
@@ -45,7 +45,6 @@ class Department(Document):
         self.description = description
 
     def __str__(self) -> str:
-        # TODO: finish this method
         return self.name
 
     @staticmethod

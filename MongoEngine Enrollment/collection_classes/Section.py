@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from mongoengine import *
+from mongoengine import ReferenceField, DENY, IntField, EnumField, StringField, ListField, Document
 
 from utils import Semester, Building, Schedule, prompt_for_enum, unique_general, print_exception, select_general
 from collection_classes import Course, Student
@@ -8,41 +8,47 @@ from collection_classes import Course, Student
 
 class Section(Document):
     course = ReferenceField(Course, required=True, reverse_delete_rule=DENY)
-    sectionNumber = IntField(db_field='section_number', required=True)
+    number = IntField(required=True)
     semester = EnumField(Semester, required=True)
-    sectionYear = IntField(db_field='section_year', required=True)
+    year = IntField(required=True)
     building = EnumField(Building, required=True)
-    room = IntField(db_field='room', min_value=1, max_value=999, required=True)
+    room = IntField(min_value=1, max_value=999, required=True)
     schedule = EnumField(Schedule, required=True)
     startTime = IntField(db_field='start_time', min_value=800, max_value=1930, required=True)
-    instructor = StringField(db_field='instructor', required=True)
+    instructor = StringField(required=True)
 
     students = ListField(ReferenceField(Student))
 
     meta = {
         'collection': 'sections',
         'indexes': [
-            {'unique': True, 'fields': ['course', 'sectionNumber', 'semester', 'sectionYear'],
-             'name': 'sections_uk_01'},
-            {'unique': True, 'fields': ['semester', 'sectionYear', 'building', 'room', 'schedule', 'startTime'],
-             'name': 'sections_uk_02'},
-            {'unique': True, 'fields': ['semester', 'sectionYear', 'schedule', 'startTime', 'instructor'],
-             'name': 'sections_uk_03'}
+            {
+                'unique': True, 'fields': ['course', 'number', 'semester', 'year'],
+                'name': 'sections_uk_01'
+            },
+            {
+                'unique': True, 'fields': ['semester', 'year', 'building', 'room', 'schedule', 'startTime'],
+                'name': 'sections_uk_02'
+            },
+            {
+                'unique': True, 'fields': ['semester', 'year', 'schedule', 'startTime', 'instructor'],
+                'name': 'sections_uk_03'
+            }
         ]
     }
 
     def __init__(
                 self,
-                sectionNumber: int, semester: Semester, sectionYear: int, building: Building, room: int,
+                number: int, semester: Semester, year: int, building: Building, room: int,
                 schedule: Schedule, startTime: int, instructor: str,
                 *args, **kwargs
     ) -> None:
         super().__init__(*args, **kwargs)
         if not self.students:
             self.students = []
-        self.sectionNumber = sectionNumber
+        self.number = number
         self.semester = semester
-        self.sectionYear = sectionYear
+        self.year = year
         self.building = building
         self.room = room
         self.schedule = schedule
@@ -50,8 +56,7 @@ class Section(Document):
         self.instructor = instructor
 
     def __str__(self) -> str:
-        # TODO: finish this method
-        return str(self.sectionNumber)
+        return f'{self.course} {self.number} in the {self.semester} of {self.year}'
 
     @staticmethod
     def add_document() -> None:
@@ -61,16 +66,16 @@ class Section(Document):
         """
         success: bool = False
         while not success:
-            section_number = int(input('Section number -->'))
+            number = int(input('Section number -->'))
             semester = prompt_for_enum('Section semester -->', Semester, 'semester')
-            section_year = int(input('Section year -->'))
+            year = int(input('Section year -->'))
             building = prompt_for_enum('Section building -->', Building, 'building')
             room = int(input('Section room -->'))
             schedule = prompt_for_enum('Section schedule --> ', Schedule, 'schedule')
             start_time = int(input('Section start time -->'))
             instructor = input('Section instructor')
 
-            new_section = Section(section_number, semester, section_year, building, room, schedule, start_time, instructor)
+            new_section = Section(number, semester, year, building, room, schedule, start_time, instructor)
             violated_constraints = unique_general(new_section)
             if len(violated_constraints) > 0:
                 for violated_constraint in violated_constraints:
@@ -93,6 +98,7 @@ class Section(Document):
         section = Section.select_document()
         if section.students:
             print('This section has students attached to it, delete those first and then try again.')
+        section.delete()
 
     @staticmethod
     def list_documents() -> None:

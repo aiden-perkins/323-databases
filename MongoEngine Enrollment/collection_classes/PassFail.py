@@ -4,7 +4,7 @@ import datetime
 from mongoengine import EmbeddedDocument, DateField
 
 from utils import prompt_for_date, unique_general, print_exception, select_general
-from collection_classes import Enrollment, Student
+from collection_classes import Enrollment, Student, LetterGrade
 
 
 class PassFail(EmbeddedDocument):
@@ -18,15 +18,20 @@ class PassFail(EmbeddedDocument):
         return f'{self._instance._instance} applied on {self.applicationDate} in {self._instance.section}'
 
     @staticmethod
-    def add_document() -> None:
+    def add_document(from_enrollment: bool = False) -> PassFail:
         """
         Create a new PassFail instance.
         :return: None
         """
-        success: bool = False
-        while not success:
-            enrollment = Enrollment.select_document()
+        while True:
+            enrollment = None
+            if not from_enrollment:
+                enrollment = Enrollment.select_document()
             application_date = prompt_for_date('Date and time of the application: ')
+            now = datetime.datetime.now()
+            if application_date <= now:
+                print(f'Application date must be before the current time ({now.strftime("%m-%d-%Y %H-%M-%S")})')
+                continue
             new_pass_fail = PassFail(application_date)
             violated_constraints = unique_general(new_pass_fail)
             if len(violated_constraints) > 0:
@@ -35,9 +40,10 @@ class PassFail(EmbeddedDocument):
                 print('try again')
             else:
                 try:
-                    enrollment.set_pass_fail(new_pass_fail)
-                    enrollment._instance.save()
-                    success = True
+                    if not from_enrollment:
+                        enrollment.switch_grade_option(pass_fail=new_pass_fail)
+                        enrollment._instance.save()
+                    return new_pass_fail
                 except Exception as e:
                     print('Errors storing the new student major:')
                     print(print_exception(e))
@@ -49,7 +55,8 @@ class PassFail(EmbeddedDocument):
         :return: None
         """
         pass_fail = PassFail.select_document()
-        pass_fail._instance.remove_pass_fail(pass_fail)
+        new_letter_grade = LetterGrade.add_document(from_enrollment=True)
+        pass_fail._instance.switch_grade_option(letter_grade=new_letter_grade)
 
     @staticmethod
     def list_documents() -> None:
