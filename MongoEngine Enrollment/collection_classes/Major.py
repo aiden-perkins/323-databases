@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from mongoengine import Document, ReferenceField, StringField, DENY
+from mongoengine import Document, ReferenceField, StringField
 
+import collection_classes
 from utils import unique_general, print_exception, select_general
-from collection_classes import Department, Student
 
 
 class Major(Document):
@@ -18,12 +18,6 @@ class Major(Document):
         ]
     }
 
-    def __init__(self, department: Department, name: str, description: str, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.department = department
-        self.name = name
-        self.description = description
-
     def __str__(self) -> str:
         return self.name
 
@@ -36,10 +30,10 @@ class Major(Document):
         success: bool = False
         while not success:
             print('Select a department: ')
-            department = Department.select_document()
+            department = collection_classes.Department.select_document()
             name = input('Major name --> ')
             description = input('Major description --> ')
-            new_major = Major(department, name, description)
+            new_major = Major(department=department, name=name, description=description)
             violated_constraints = unique_general(new_major)
             if len(violated_constraints) > 0:
                 for violated_constraint in violated_constraints:
@@ -62,7 +56,7 @@ class Major(Document):
         :return: None
         """
         major = Major.select_document()
-        for student in Student.objects:
+        for student in collection_classes.Student.objects:
             for student_major in student.studentMajors:
                 if student_major.major.pk == major.pk:
                     print('There is a student with this major, cannot delete this major.')

@@ -16,6 +16,8 @@ def menu_loop(menu: utils.Menu) -> None:
 
 
 if __name__ == '__main__':
+    # TODO: when searching for something, add an option to quit.
+
     # TODO: add type annotations to everything in functions, maybe also comments
 
     # TODO: some things may need the reverse delete rule thing

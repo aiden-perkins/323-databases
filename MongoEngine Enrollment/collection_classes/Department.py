@@ -27,25 +27,8 @@ class Department(Document):
         ]
     }
 
-    def __init__(
-            self,
-            name: str, abbreviation: str, chairName: str, building: Building, office: int, description: str,
-            *args, **kwargs
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        if not self.courses:
-            self.courses = []
-        if not self.majors:
-            self.majors = []
-        self.name = name
-        self.abbreviation = abbreviation
-        self.chairName = chairName
-        self.building = building
-        self.office = office
-        self.description = description
-
     def __str__(self) -> str:
-        return self.name
+        return self.abbreviation
 
     @staticmethod
     def add_document() -> None:
@@ -62,7 +45,10 @@ class Department(Document):
             office = int(input('Department office --> '))
             description = input('Department description --> ')
 
-            new_department = Department(name, abbreviation, chair_name, building, office, description)
+            new_department = Department(
+                name=name, abbreviation=abbreviation, chairName=chair_name,
+                building=building, office=office, description=description
+            )
             violated_constraints = unique_general(new_department)
             if len(violated_constraints) > 0:
                 for violated_constraint in violated_constraints:

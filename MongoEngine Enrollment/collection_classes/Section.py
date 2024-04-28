@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from mongoengine import ReferenceField, DENY, IntField, EnumField, StringField, ListField, Document
+from mongoengine import ReferenceField, IntField, EnumField, StringField, ListField, Document
 
+import collection_classes
 from utils import Semester, Building, Schedule, prompt_for_enum, unique_general, print_exception, select_general
-from collection_classes import Student, Course
 
 
 class Section(Document):
@@ -37,27 +37,8 @@ class Section(Document):
         ]
     }
 
-    def __init__(
-                self,
-                course: Course, number: int, semester: Semester, year: int, building: Building, room: int,
-                schedule: Schedule, startTime: int, instructor: str,
-                *args, **kwargs
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        if not self.students:
-            self.students = []
-        self.course = course
-        self.number = number
-        self.semester = semester
-        self.year = year
-        self.building = building
-        self.room = room
-        self.schedule = schedule
-        self.startTime = startTime
-        self.instructor = instructor
-
     def __str__(self) -> str:
-        return f'{self.course} {self.number} in the {self.semester} of {self.year}'
+        return f'{self.course}, s{self.number} in the {self.semester.name} of {self.year}'
 
     @staticmethod
     def add_document() -> None:
@@ -68,7 +49,7 @@ class Section(Document):
         success: bool = False
         while not success:
             print('Select a course: ')
-            course = Course.select_document()
+            course = collection_classes.Course.select_document()
             number = int(input('Section number --> '))
             semester = prompt_for_enum('Section semester --> ', Semester)
             year = int(input('Section year --> '))
@@ -76,9 +57,12 @@ class Section(Document):
             room = int(input('Section room --> '))
             schedule = prompt_for_enum('Section schedule --> ', Schedule)
             start_time = int(input('Section start time --> '))
-            instructor = input('Section instructor')
+            instructor = input('Section instructor -> ')
 
-            new_section = Section(course, number, semester, year, building, room, schedule, start_time, instructor)
+            new_section = Section(
+                course=course, number=number, semester=semester, year=year, building=building, room=room,
+                schedule=schedule, startTime=start_time, instructor=instructor
+            )
             violated_constraints = unique_general(new_section)
             if len(violated_constraints) > 0:
                 for violated_constraint in violated_constraints:
@@ -114,13 +98,13 @@ class Section(Document):
     def select_document() -> Section:
         return select_general(Section)
 
-    def add_student(self, new_student: Student) -> None:
+    def add_student(self, new_student: collection_classes.Student) -> None:
         for student in self.students:
             if new_student.pk == student.pk:
                 return
         self.students.append(new_student)
 
-    def remove_student(self, old_student: Student) -> None:
+    def remove_student(self, old_student: collection_classes.Student) -> None:
         for student in self.students:
             if student.pk == old_student.pk:
                 self.students.remove(old_student)

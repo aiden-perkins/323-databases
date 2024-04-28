@@ -2,10 +2,66 @@ import io
 import datetime
 from enum import EnumType
 from pprint import pformat
+from importlib import import_module
 
-from mongoengine import NotUniqueError, ValidationError
+from mongoengine import NotUniqueError, ValidationError, EnumField, ReferenceField, DateTimeField, IntField
 
 from utils import Option, Menu
+
+
+def select_general_embedded(cls):
+    index_info = cls._meta['indexes']
+    choices = []
+    for i, index in enumerate(index_info):
+        if index['unique']:
+            choices.append(Option(f'index: {index["name"]} - cols: {index["fields"]}', i))
+    index_menu = Menu('which index', 'Which index do you want to search by:', choices)
+    while True:
+        chosen_index = index_menu.menu_prompt()
+        filters = {}
+        for column in index_info[chosen_index]['fields']:
+            attribute = get_attr_from_column(cls, column.split('.'))
+            if isinstance(attribute, ReferenceField):
+                referenced_class = attribute.document_type
+                target = select_general(referenced_class)
+                filters[column] = target
+            elif isinstance(attribute, DateTimeField):
+                filters[column] = prompt_for_date(f'search for {column} =:')
+            elif isinstance(attribute, EnumField):
+                filters[column] = prompt_for_enum(f'search for {column} =:', type(attribute.choices[0]))
+            elif hasattr(attribute, '__name__') and attribute.__name__ == getattr(cls, 'parent'):
+                target = select_general(attribute)
+                filters[column] = target
+            elif isinstance(attribute, IntField):
+                filters[column] = int(input(f'search for {column} --> '))
+            else:
+                filters[column] = input(f'search for {column} --> ')
+        results = []
+        for embedded_object in cls.get_all_objects():
+            match = True
+            for column in filters:
+                value = get_val_from_attr(embedded_object, column.split('.'))
+                if value != filters[column]:
+                    print(value, filters[column])
+                    match = False
+            if match:
+                results.append(embedded_object)
+        if len(results) == 1:
+            return results[0]
+        else:
+            print('Sorry, no rows found that match those criteria. Try again.')
+
+
+def get_val_from_attr(obj, attr):
+    if attr[0] == 'parent':
+        if len(attr) == 1:
+            return getattr(obj, '_instance')
+        else:
+            return get_val_from_attr(getattr(obj, '_instance'), attr[1:])
+    if len(attr) == 1:
+        return getattr(obj, attr[0])
+    else:
+        return get_val_from_attr(getattr(obj, attr[0]), attr[1:])
 
 
 def prompt_for_enum(prompt: str, cls: EnumType) -> Menu:
@@ -54,21 +110,28 @@ def prompt_for_date(prompt: str) -> datetime:
             print('Please try again.')
 
 
-def get_attr_from_column(cls, column_name) -> str:
+def get_attr_from_column(cls, column_names: list[str]):
     """
     Returns the name of the attribute that corresponds to the given column name.  The attribute
     name is in CamelCase, while the column name is in snake_case.  The column within a Document
     class has the db_field property that gives us the database column name of that attribute.
     :param cls:             The class that has an attribute corresponding to the given column_name.
-    :param column_name:     The column that we are looking for the corresponding attribute.
+    :param column_names:     The column that we are looking for the corresponding attribute.
     :return:                THe name of the attribute for the given column.
     """
-    for attribute in cls.__dict__['_fields'].keys():
-        # the 'id' attribute is a legitimate attribute with a db_name of _id, so we'll use it if need be.
-        # if attribute != 'id':  # Skip the obligatory id field
-        # TODO: I'm not sure what happens with a dict or list attribute in the class.
-        if getattr(cls, attribute).__dict__['db_field'] == column_name:
-            return attribute
+    if column_names[0] == 'parent':
+        new_cls = getattr(import_module('collection_classes'), getattr(cls, column_names[0]))
+        if len(column_names) == 1:
+            return new_cls
+        else:
+            return get_attr_from_column(new_cls, column_names[1:])
+    for attribute in cls._fields:
+        attribute = getattr(cls, attribute)
+        if attribute.db_field == column_names[0]:
+            if len(column_names) == 1:
+                return attribute
+            else:
+                return get_attr_from_column(attribute.document_type, column_names[1:])
 
 
 def select_general(cls):
@@ -83,7 +146,7 @@ def select_general(cls):
     index_info = collection.index_information()
     # Loop through the indexes of the collection.
     choices = []
-    for index in index_info.keys():
+    for index in index_info:
         # see if the index is unique.  If not, we're not interested in using it.
         # _id_ does not have a property named unique since _id_ is ALWAYS unique.  Hence, the order in the if statement.
         if index == '_id_' or index_info[index]['unique']:
@@ -96,9 +159,9 @@ def select_general(cls):
         filters = {}  # The attribute/value pairs that we're going to search by
         for column in [col[0] for col in index_info[chosen_index]['key']]:
             # now I have to convert from the column name to the attribute name.
-            attribute_name = get_attr_from_column(cls, column)
+            attribute = get_attr_from_column(cls, [column])
+            attribute_name = get_attr_name(cls, attribute)
             # If this attribute is a reference, we need to go find that referenced document.
-            attribute = getattr(cls, attribute_name)
             if type(attribute).__name__ == 'ReferenceField':
                 # This attribute in this uniqueness requirement is a reference --> it's an identifying relationship.
                 # Now we have to figure out the class that we're referencing.
@@ -117,15 +180,25 @@ def select_general(cls):
                 """
             elif type(attribute).__name__ == 'DateTimeField':
                 filters[attribute_name] = prompt_for_date(f'search for {attribute_name} =:')
+            elif isinstance(attribute, EnumField):
+                filters[column] = prompt_for_enum(f'search for {column} =:', type(attribute.choices[0]))
+            elif isinstance(attribute, IntField):
+                filters[attribute_name] = int(input(f'search for {attribute_name} --> '))
             else:
                 # It's not a reference, so prompt for the literal value.
-                # This works for string and numeric, but honestly, I should convert the string depending on the type.
+                # This works for string, but honestly, I should convert the string depending on the type.
                 filters[attribute_name] = input(f'search for {attribute_name} --> ')
         # count the number of rows that meet that criteria.
         if cls.objects(**filters).count() == 1:
             return cls.objects(**filters).first()
         else:
             print('Sorry, no rows found that match those criteria. Try again.')
+
+
+def get_attr_name(cls, attribute):
+    for attr_name in dir(cls):
+        if getattr(cls, attr_name) == attribute:
+            return attr_name
 
 
 def unique_general(instance):
@@ -145,7 +218,7 @@ def unique_general(instance):
     # Loop through the indexes of the collection.
     constraints = []
     violated_constraints = []
-    for index in index_info.keys():  # Loop through the list of index names.
+    for index in index_info:  # Loop through the list of index names.
         # see if the index is unique.  If not, we're not interested in using it.
         # _id_ does not have a property named unique since _id_ is ALWAYS unique.
         # Normally, _id_ is assigned by MongoDB, but the user COULD use that for a descriptive
@@ -160,7 +233,7 @@ def unique_general(instance):
         filters = {}  # The attribute/value pairs that we're going to search by
         for column in constraint['columns']:
             # now I have to convert from the column name to the attribute name.
-            attribute_name = get_attr_from_column(cls, column)
+            attribute_name = get_attr_name(cls, get_attr_from_column(cls, [column]))
             # Add the next key=value pair to our list of filters.
             filters[attribute_name] = instance[attribute_name]
         # count the number of rows that meet those criteria.
@@ -212,7 +285,7 @@ def print_exception(thrown_exception: Exception):
         elif isinstance(thrown_exception, ValidationError):
             output.write(f'{pformat(thrown_exception.message)}\n')
             all_errors = thrown_exception.errors
-            for error in all_errors.keys():
+            for error in all_errors:
                 output.write(f'field name: {error} has issue: \n{pformat(all_errors.get(error))}\n')
         results = output.getvalue().rstrip()
     return results

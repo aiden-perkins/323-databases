@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from mongoengine import Document, ReferenceField, IntField, StringField, ListField, DENY
+from mongoengine import Document, ReferenceField, IntField, StringField, ListField
 
+import collection_classes
 from utils import unique_general, print_exception, select_general
-from collection_classes import Department, Section
 
 
 class Course(Document):
@@ -23,21 +23,8 @@ class Course(Document):
         ]
     }
 
-    def __init__(
-            self, department: Department, number: int, name: str, description: str, units: int,
-            *args, **kwargs
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        if not self.sections:
-            self.sections = []
-        self.department = department
-        self.number = number
-        self.name = name
-        self.description = description
-        self.units = units
-
     def __str__(self) -> str:
-        return f'{self.department}: {self.number} {self.name} ({self.units})'
+        return f'{self.department} {self.number} {self.name} ({self.units}u)'
 
     @staticmethod
     def add_document() -> None:
@@ -48,12 +35,12 @@ class Course(Document):
         success: bool = False
         while not success:
             print('Select a department this course belongs to: ')
-            department = Department.select_document()
+            department = collection_classes.Department.select_document()
             number = int(input('Course number --> '))
             name = input('Course name --> ')
             description = input('Course description --> ')
             units = int(input('Course units --> '))
-            new_course = Course(department, number, name, description, units)
+            new_course = Course(department=department, number=number, name=name, description=description, units=units)
             violated_constraints = unique_general(new_course)
             if len(violated_constraints) > 0:
                 for violated_constraint in violated_constraints:
@@ -87,13 +74,13 @@ class Course(Document):
     def select_document() -> Course:
         return select_general(Course)
 
-    def add_section(self, new_section: Section):
+    def add_section(self, new_section: collection_classes.Section):
         for section in self.sections:
             if new_section.pk == section.pk:
                 return
         self.sections.append(new_section)
 
-    def remove_section(self, old_section: Section):
+    def remove_section(self, old_section: collection_classes.Section):
         for section in self.sections:
             if old_section.pk == section.pk:
                 self.sections.remove(old_section)

@@ -28,7 +28,7 @@ add_menu = Menu('add select', 'Which type of object do you want to add?:', [
     Option('Course', 'collection_classes.Course.add_document()'),
     Option('Major', 'collection_classes.Major.add_document()'),
     Option('Section', 'collection_classes.Section.add_document()'),
-    Option('Student', 'collection_classes..add_documenStudentt()'),
+    Option('Student', 'collection_classes.Student.add_document()'),
     Option('StudentMajor', 'collection_classes.StudentMajor.add_document()'),
     Option('Enrollment', 'collection_classes.Enrollment.add_document()'),
     Option('Letter Grade', 'collection_classes.LetterGrade.add_document()'),
