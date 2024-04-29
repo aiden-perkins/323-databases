@@ -59,8 +59,10 @@ class Student(Document):
         student = Student.select_document()
         if student.enrollments:
             print('This student has enrollments attached to it, delete those first and then try again.')
+            return
         if student.studentMajors:
             print('This student has majors attached to it, delete those first and then try again.')
+            return
         student.delete()
 
     @staticmethod
