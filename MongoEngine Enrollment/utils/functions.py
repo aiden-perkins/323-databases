@@ -1,6 +1,6 @@
 import io
 import datetime
-from enum import EnumType
+from enum import EnumMeta
 from pprint import pformat
 from importlib import import_module
 
@@ -64,7 +64,7 @@ def get_val_from_attr(obj, attr):
         return get_val_from_attr(getattr(obj, attr[0]), attr[1:])
 
 
-def prompt_for_enum(prompt: str, cls: EnumType) -> Menu:
+def prompt_for_enum(prompt: str, cls: EnumMeta) -> Menu:
     """
     MongoEngine attributes can be regulated with an enum.  If they are, the definition of
     that attribute will carry the list of choices allowed by the enum (as well as the enum
@@ -76,7 +76,7 @@ def prompt_for_enum(prompt: str, cls: EnumType) -> Menu:
                             enumerated attribute belongs to.
     :return:                The enum class member that the user selected.
     """
-    if type(cls).__name__ == 'EnumType':
+    if type(cls).__name__ == 'EnumMeta':
         enum_values = []
         for choice in cls:  # Build a menu option for each of the enum instances.
             enum_values.append(Option(choice.name, choice))
