@@ -42,7 +42,6 @@ def select_general_embedded(cls):
             for column in filters:
                 value = get_val_from_attr(embedded_object, column.split('.'))
                 if value != filters[column]:
-                    print(value, filters[column])
                     match = False
             if match:
                 results.append(embedded_object)

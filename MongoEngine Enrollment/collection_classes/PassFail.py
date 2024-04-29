@@ -66,4 +66,5 @@ class PassFail(EmbeddedDocument):
             if enrollment.passFail:
                 break
             print('That enrollment did not choose pass fail, try again.')
+            enrollment = None
         return enrollment.passFail

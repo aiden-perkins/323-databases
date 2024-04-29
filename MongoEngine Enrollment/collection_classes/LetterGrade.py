@@ -53,4 +53,5 @@ class LetterGrade(EmbeddedDocument):
             if enrollment.letterGrade:
                 break
             print('That enrollment did not choose letter grade, try again.')
+            enrollment = None
         return enrollment.letterGrade
