@@ -3,7 +3,7 @@ from .PassFail import PassFail
 from .LetterGrade import LetterGrade
 from .Enrollment import Enrollment
 from .Student import Student
-from .Section import Section
-from .Major import Major
-from .Course import Course
 from .Department import Department
+from .Course import Course
+from .Major import Major
+from .Section import Section

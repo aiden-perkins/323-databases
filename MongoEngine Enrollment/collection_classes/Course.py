@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from mongoengine import Document, ReferenceField, IntField, StringField, ListField
+from mongoengine import Document, ReferenceField, IntField, StringField, ListField, DENY
 
 import collection_classes
 from utils import unique_general, print_exception, select_general
 
 
 class Course(Document):
-    department = ReferenceField('Department', required=True)
+    department = ReferenceField('Department', required=True, reverse_delete_rule=DENY)
     number = IntField(min_value=100, max_value=699, required=True)
     name = StringField(required=True)
     description = StringField(required=True)

@@ -3,7 +3,7 @@ from __future__ import annotations
 from mongoengine import StringField, EmbeddedDocumentListField, Document
 
 import collection_classes
-from utils import unique_general, print_exception, select_general
+from utils import unique_general, print_exception, select_general, unique_general_embedded
 
 
 class Student(Document):
@@ -75,29 +75,25 @@ class Student(Document):
         return select_general(Student)
 
     def add_enrollment(self, new_enrollment: collection_classes.Enrollment) -> None:
-        for enrollment in self.enrollments:
-            # TODO: Enrollment objects do not have an _id, as they are embedded.
-            if new_enrollment.pk == enrollment.pk:
-                return
-        self.enrollments.append(new_enrollment)
+        violations = unique_general_embedded(new_enrollment)
+        # This check is pointless, but I left it here as a redundancy, as we already know it's unique because
+        # Enrollment.add_document() checks before calling this function. This applies to all add_child() functions.
+        if len(violations) < 1:
+            self.enrollments.append(new_enrollment)
 
     def remove_enrollment(self, old_enrollment: collection_classes.Enrollment) -> None:
-        for enrollment in self.enrollments:
-            # TODO: Enrollment objects do not have an _id, as they are embedded.
-            if enrollment.pk == old_enrollment.pk:
-                self.enrollments.remove(old_enrollment)
-                return
+        violations = unique_general_embedded(old_enrollment)
+        # This check is pointless, but I left it here as a redundancy, as we already know it's in enrollments because
+        # this function is called from the parent object of the enrollment. This applies to all remove_child functions.
+        if len(violations) > 1:
+            self.enrollments.remove(old_enrollment)
 
     def add_student_major(self, new_student_major: collection_classes.StudentMajor) -> None:
-        for student_major in self.studentMajors:
-            # TODO: StudentMajor objects do not have an _id, as they are embedded.
-            if new_student_major.pk == student_major.pk:
-                return
-        self.studentMajors.append(new_student_major)
+        violations = unique_general_embedded(new_student_major)
+        if len(violations) < 1:
+            self.studentMajors.append(new_student_major)
 
     def remove_student_major(self, old_student_major: collection_classes.StudentMajor) -> None:
-        for student_major in self.studentMajors:
-            # TODO: StudentMajor objects do not have an _id, as they are embedded.
-            if student_major.pk == old_student_major.pk:
-                self.studentMajors.remove(old_student_major)
-                return
+        violations = unique_general_embedded(old_student_major)
+        if len(violations) > 1:
+            self.studentMajors.remove(old_student_major)

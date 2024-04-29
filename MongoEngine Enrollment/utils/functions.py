@@ -3,13 +3,14 @@ import datetime
 from enum import EnumMeta
 from pprint import pformat
 from importlib import import_module
+from typing import Iterator, Type, Any
 
-from mongoengine import NotUniqueError, ValidationError, EnumField, ReferenceField, DateTimeField, IntField
+from mongoengine import NotUniqueError, ValidationError, EnumField, ReferenceField, DateTimeField, IntField, document
 
 from utils import Option, Menu
 
 
-def select_general_embedded(cls):
+def select_general_embedded(cls: Type[document.EmbeddedDocument]) -> document.EmbeddedDocument:
     index_info = cls._meta['indexes']
     choices = []
     for i, index in enumerate(index_info):
@@ -26,32 +27,26 @@ def select_general_embedded(cls):
                 target = select_general(referenced_class)
                 filters[column] = target
             elif isinstance(attribute, DateTimeField):
-                filters[column] = prompt_for_date(f'search for {column} =:')
+                filters[column] = prompt_for_date(f'search for {cls.__name__.lower()}.{column} =:')
             elif isinstance(attribute, EnumField):
-                filters[column] = prompt_for_enum(f'search for {column} =:', type(attribute.choices[0]))
+                filters[column] = prompt_for_enum(
+                    f'search for {cls.__name__.lower()}.{column} =:', type(attribute.choices[0])
+                )
             elif hasattr(attribute, '__name__') and attribute.__name__ == getattr(cls, 'parent'):
                 target = select_general(attribute)
                 filters[column] = target
             elif isinstance(attribute, IntField):
-                filters[column] = int(input(f'search for {column} --> '))
+                filters[column] = int(input(f'search for {cls.__name__.lower()}.{column} --> '))
             else:
-                filters[column] = input(f'search for {column} --> ')
-        results = []
-        for embedded_object in cls.get_all_objects():
-            match = True
-            for column in filters:
-                value = get_val_from_attr(embedded_object, column.split('.'))
-                if value != filters[column]:
-                    match = False
-            if match:
-                results.append(embedded_object)
+                filters[column] = input(f'search for {cls.__name__.lower()}.{column} --> ')
+        results = list(embedded_object_filter(cls, filters))
         if len(results) == 1:
             return results[0]
         else:
             print('Sorry, no rows found that match those criteria. Try again.')
 
 
-def get_val_from_attr(obj, attr):
+def get_val_from_attr(obj: document.BaseDocument, attr: list[str]) -> Any:
     if attr[0] == 'parent':
         if len(attr) == 1:
             return getattr(obj, '_instance')
@@ -75,7 +70,8 @@ def prompt_for_enum(prompt: str, cls: EnumMeta) -> Menu:
                             enumerated attribute belongs to.
     :return:                The enum class member that the user selected.
     """
-    if type(cls).__name__ == 'EnumMeta':
+    # In python 3.11, EnumMeta is renamed to EnumType so this ensures both work.
+    if type(cls).__name__ in ['EnumMeta', 'EnumType']:
         enum_values = []
         for choice in cls:  # Build a menu option for each of the enum instances.
             enum_values.append(Option(choice.name, choice))
@@ -109,9 +105,9 @@ def prompt_for_date(prompt: str) -> datetime:
             print('Please try again.')
 
 
-def get_attr_from_column(cls, column_names: list[str]):
+def get_attr_from_column(cls: Type[document.BaseDocument], column_names: list[str]) -> Any:
     """
-    Returns the name of the attribute that corresponds to the given column name.  The attribute
+    Returns the attribute that corresponds to the given column names.  The attribute
     name is in CamelCase, while the column name is in snake_case.  The column within a Document
     class has the db_field property that gives us the database column name of that attribute.
     :param cls:             The class that has an attribute corresponding to the given column_name.
@@ -133,7 +129,7 @@ def get_attr_from_column(cls, column_names: list[str]):
                 return get_attr_from_column(attribute.document_type, column_names[1:])
 
 
-def select_general(cls):
+def select_general(cls: Type[document.Document]) -> document.Document:
     """
     Return one instance of the class that's supplied as an input, by prompting the user for
     the values of the selected uniqueness constraint for the collection corresponding to that class.
@@ -178,15 +174,17 @@ def select_general(cls):
                 recursion comes in very handy.
                 """
             elif type(attribute).__name__ == 'DateTimeField':
-                filters[attribute_name] = prompt_for_date(f'search for {attribute_name} =:')
+                filters[attribute_name] = prompt_for_date(f'search for {cls.__name__.lower()}.{attribute_name} =:')
             elif isinstance(attribute, EnumField):
-                filters[column] = prompt_for_enum(f'search for {column} =:', type(attribute.choices[0]))
+                filters[column] = prompt_for_enum(
+                    f'search for {cls.__name__.lower()}.{column} =:', type(attribute.choices[0])
+                )
             elif isinstance(attribute, IntField):
-                filters[attribute_name] = int(input(f'search for {attribute_name} --> '))
+                filters[attribute_name] = int(input(f'search for {cls.__name__.lower()}.{attribute_name} --> '))
             else:
                 # It's not a reference, so prompt for the literal value.
                 # This works for string, but honestly, I should convert the string depending on the type.
-                filters[attribute_name] = input(f'search for {attribute_name} --> ')
+                filters[attribute_name] = input(f'search for {cls.__name__.lower()}.{attribute_name} --> ')
         # count the number of rows that meet that criteria.
         if cls.objects(**filters).count() == 1:
             return cls.objects(**filters).first()
@@ -194,13 +192,42 @@ def select_general(cls):
             print('Sorry, no rows found that match those criteria. Try again.')
 
 
-def get_attr_name(cls, attribute):
+def get_attr_name(cls: Type[document.BaseDocument], attribute: Any) -> str:
     for attr_name in dir(cls):
         if getattr(cls, attr_name) == attribute:
             return attr_name
 
 
-def unique_general(instance):
+def embedded_object_filter(cls: Type[document.EmbeddedDocument], filters: dict[str: Any]) -> Iterator:
+    for embedded_object in cls.get_all_objects():
+        match = True
+        for column in filters:
+            value = get_val_from_attr(embedded_object, column.split('.'))
+            if value != filters[column]:
+                match = False
+        if match:
+            yield embedded_object
+
+
+def unique_general_embedded(instance: document.EmbeddedDocument) -> list[dict[str: str, str: list[str]]]:
+    cls = instance.__class__
+    index_info = cls._meta['indexes']
+    constraints = []
+    violated_constraints = []
+    for index in index_info:
+        if index['unique']:
+            constraints.append({'name': index['name'], 'columns': index['fields']})
+    for constraint in constraints:
+        filters = {}
+        for column in constraint['columns']:
+            filters[column] = get_val_from_attr(instance, column.split('.'))
+        results = list(embedded_object_filter(cls, filters))
+        if len(results) == 1:
+            violated_constraints.append(constraint)
+    return violated_constraints
+
+
+def unique_general(instance: document.Document) -> list[dict[str: str, str: list[str]]]:
     """
     Check all uniqueness constraints on the collection that instance belongs to and return those
     uniqueness constraints that have been violated.  If that returned list has no members, then
@@ -244,7 +271,7 @@ def unique_general(instance):
     return violated_constraints
 
 
-def print_exception(thrown_exception: Exception):
+def print_exception(thrown_exception: Exception) -> str:
     """
     Analyze the supplied selection and return a text string that captures what violations of the
     schema & any uniqueness constraints that caused the input exception.  Note that the structure

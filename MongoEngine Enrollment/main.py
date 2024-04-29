@@ -16,11 +16,10 @@ def menu_loop(menu: utils.Menu) -> None:
 
 
 if __name__ == '__main__':
-    # TODO: when searching for something, add an option to quit.
+    # TODO: ideally we would have a CollectionClass interface that all classes we make inherit from, but from my initial
+    # testing I couldn't get this to work with mongo engine sadly, alongside that interface I would also want one for
+    # the embedded documents, this would allow annotations to work better and everything to be seamless, might revisit.
 
-    # TODO: add type annotations to everything in functions, maybe also comments
-
-    # TODO: some things may need the reverse delete rule thing
     print('Starting in main.')
     command_logger = utils.CommandLogger()
     monitoring.register(command_logger)

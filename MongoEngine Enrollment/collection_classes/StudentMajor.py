@@ -2,18 +2,19 @@ from __future__ import annotations
 import datetime
 from typing import Iterator
 
-from mongoengine import EmbeddedDocument, ReferenceField, DateField
+from mongoengine import EmbeddedDocument, ReferenceField, DateTimeField
 
 import collection_classes
-from utils import prompt_for_date, print_exception, select_general_embedded
+from utils import prompt_for_date, print_exception, select_general_embedded, unique_general_embedded
 
 
 class StudentMajor(EmbeddedDocument):
     major = ReferenceField('Major', required=True)
-    declarationDate = DateField(db_field='declaration_date', required=True)
+    declarationDate = DateTimeField(db_field='declaration_date', required=True)
 
     parent = 'Student'
 
+    # This doesn't actually do anything, this is only here, so I can access it with other functions.
     meta = {
         'indexes': [
             {'unique': True, 'fields': ['parent', 'major'], 'name': 'student_majors_uk_01'},
@@ -41,13 +42,20 @@ class StudentMajor(EmbeddedDocument):
                 print(f'Declaration date must be before the current time ({now.strftime("%m-%d-%Y %H-%M-%S")})')
                 continue
             new_student_major = StudentMajor(major=major, declarationDate=declaration_date)
-            try:
-                student.add_student_major(new_student_major)
-                student.save()
-                success = True
-            except Exception as e:
-                print('Errors storing the new student major:')
-                print(print_exception(e))
+            new_student_major._instance = student
+            violated_constraints = unique_general_embedded(new_student_major)
+            if len(violated_constraints) > 0:
+                for violated_constraint in violated_constraints:
+                    print('Your input values violated constraint: ', violated_constraint)
+                print('try again')
+            else:
+                try:
+                    student.add_student_major(new_student_major)
+                    student.save()
+                    success = True
+                except Exception as e:
+                    print('Errors storing the new student major:')
+                    print(print_exception(e))
 
     @staticmethod
     def delete_document() -> None:

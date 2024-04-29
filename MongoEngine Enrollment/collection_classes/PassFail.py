@@ -1,14 +1,14 @@
 from __future__ import annotations
 import datetime
 
-from mongoengine import EmbeddedDocument, DateField
+from mongoengine import EmbeddedDocument, DateTimeField
 
 import collection_classes
 from utils import prompt_for_date, print_exception, select_general_embedded
 
 
 class PassFail(EmbeddedDocument):
-    applicationDate = DateField(db_field='application_date', required=True)
+    applicationDate = DateTimeField(db_field='application_date', required=True)
 
     parent = 'Enrollment'
 

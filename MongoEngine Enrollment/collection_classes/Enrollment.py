@@ -4,7 +4,7 @@ from typing import Iterator
 from mongoengine import EmbeddedDocument, EmbeddedDocumentField, ReferenceField
 
 import collection_classes
-from utils import print_exception, select_general_embedded
+from utils import print_exception, select_general_embedded, unique_general_embedded
 
 
 class Enrollment(EmbeddedDocument):
@@ -14,6 +14,7 @@ class Enrollment(EmbeddedDocument):
 
     parent = 'Student'
 
+    # This doesn't actually do anything, this is only here, so I can access it with other functions.
     meta = {
         'indexes': [
             {'unique': True, 'fields': ['parent', 'section'], 'name': 'enrollments_uk_01'},
@@ -38,21 +39,28 @@ class Enrollment(EmbeddedDocument):
             section = collection_classes.Section.select_document()
             pass_fail = None
             letter_grade = None
-            choice = int(input('Do you want pass fail (1) or letter grade (2) -> '))
+            choice = int(input('Do you want pass fail (1) or letter grade (2) --> '))
             if choice == 1:
                 pass_fail = collection_classes.PassFail.add_document(from_enrollment=True)
             else:
                 letter_grade = collection_classes.LetterGrade.add_document(from_enrollment=True)
             new_enrollment = Enrollment(section=section, passFail=pass_fail, letterGrade=letter_grade)
-            try:
-                student.add_enrollment(new_enrollment)
-                student.save()
-                section.add_student(student)
-                section.save()
-                success = True
-            except Exception as e:
-                print('Errors storing the new enrollment:')
-                print(print_exception(e))
+            new_enrollment._instance = student
+            violated_constraints = unique_general_embedded(new_enrollment)
+            if len(violated_constraints) > 0:
+                for violated_constraint in violated_constraints:
+                    print('Your input values violated constraint: ', violated_constraint)
+                print('try again')
+            else:
+                try:
+                    student.add_enrollment(new_enrollment)
+                    student.save()
+                    section.add_student(student)
+                    section.save()
+                    success = True
+                except Exception as e:
+                    print('Errors storing the new enrollment:')
+                    print(print_exception(e))
 
     @staticmethod
     def delete_document() -> None:

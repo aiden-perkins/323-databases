@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from mongoengine import ReferenceField, IntField, EnumField, StringField, ListField, Document
+from mongoengine import ReferenceField, IntField, EnumField, StringField, ListField, Document, DENY
 
 import collection_classes
 from utils import Semester, Building, Schedule, prompt_for_enum, unique_general, print_exception, select_general
 
 
 class Section(Document):
-    course = ReferenceField('Course', required=True)
+    course = ReferenceField('Course', required=True, reverse_delete_rule=DENY)
     number = IntField(required=True)
     semester = EnumField(Semester, required=True)
     year = IntField(required=True)
@@ -57,8 +57,10 @@ class Section(Document):
             room = int(input('Section room --> '))
             schedule = prompt_for_enum('Section schedule --> ', Schedule)
             start_time = int(input('Section start time --> '))
-            instructor = input('Section instructor -> ')
-
+            if start_time % 100 >= 60:
+                print('That is not a valid start time, try again.')
+                continue
+            instructor = input('Section instructor --> ')
             new_section = Section(
                 course=course, number=number, semester=semester, year=year, building=building, room=room,
                 schedule=schedule, startTime=start_time, instructor=instructor

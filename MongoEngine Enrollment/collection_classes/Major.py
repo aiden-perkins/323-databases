@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from mongoengine import Document, ReferenceField, StringField
+from mongoengine import Document, ReferenceField, StringField, DENY
 
 import collection_classes
 from utils import unique_general, print_exception, select_general
 
 
 class Major(Document):
-    department = ReferenceField('Department', required=True)
+    department = ReferenceField('Department', required=True, reverse_delete_rule=DENY)
     name = StringField(required=True)
     description = StringField(required=True)
 
