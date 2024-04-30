@@ -35,6 +35,7 @@ class LetterGrade(EmbeddedDocument):
     @staticmethod
     def delete_document() -> None:
         letter_grade = LetterGrade.select_document()
+        print('Switching from LetterGrade to PassFail:')
         new_pass_fail = collection_classes.PassFail.add_document(from_enrollment=True)
         letter_grade._instance.switch_grade_option(pass_fail=new_pass_fail)
 

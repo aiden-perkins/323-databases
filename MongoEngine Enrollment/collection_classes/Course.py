@@ -63,6 +63,7 @@ class Course(Document):
             print('This course has sections attached to it, delete those first and then try again.')
             return
         course.department.remove_course(course)
+        course.department.save()
         course.delete()
 
     @staticmethod

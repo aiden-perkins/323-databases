@@ -85,7 +85,7 @@ class Student(Document):
         violations = unique_general_embedded(old_enrollment)
         # This check is pointless, but I left it here as a redundancy, as we already know it's in enrollments because
         # this function is called from the parent object of the enrollment. This applies to all remove_child functions.
-        if len(violations) > 1:
+        if len(violations) >= 1:
             self.enrollments.remove(old_enrollment)
 
     def add_student_major(self, new_student_major: collection_classes.StudentMajor) -> None:
@@ -95,5 +95,5 @@ class Student(Document):
 
     def remove_student_major(self, old_student_major: collection_classes.StudentMajor) -> None:
         violations = unique_general_embedded(old_student_major)
-        if len(violations) > 1:
+        if len(violations) >= 1:
             self.studentMajors.remove(old_student_major)

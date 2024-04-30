@@ -65,6 +65,7 @@ class StudentMajor(EmbeddedDocument):
         """
         student_major = StudentMajor.select_document()
         student_major._instance.remove_student_major(student_major)
+        student_major._instance.save()
 
     @staticmethod
     def list_documents() -> None:

@@ -90,6 +90,8 @@ class Section(Document):
         if section.students:
             print('This section has students attached to it, delete those first and then try again.')
             return
+        section.course.remove_section(section)
+        section.course.save()
         section.delete()
 
     @staticmethod

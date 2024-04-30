@@ -65,7 +65,10 @@ class Enrollment(EmbeddedDocument):
     @staticmethod
     def delete_document() -> None:
         enrollment = Enrollment.select_document()
+        enrollment.section.remove_student(enrollment._instance)
+        enrollment.section.save()
         enrollment._instance.remove_enrollment(enrollment)
+        enrollment._instance.save()
 
     @staticmethod
     def list_documents() -> None:
@@ -87,3 +90,4 @@ class Enrollment(EmbeddedDocument):
     ) -> None:
         self.passFail = pass_fail
         self.letterGrade = letter_grade
+        self._instance.save()

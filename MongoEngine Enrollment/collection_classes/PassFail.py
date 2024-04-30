@@ -48,6 +48,7 @@ class PassFail(EmbeddedDocument):
         :return: None
         """
         pass_fail = PassFail.select_document()
+        print('Switching from PassFail to LetterGrade:')
         new_letter_grade = collection_classes.LetterGrade.add_document(from_enrollment=True)
         pass_fail._instance.switch_grade_option(letter_grade=new_letter_grade)
 

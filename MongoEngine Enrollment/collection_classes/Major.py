@@ -61,10 +61,13 @@ class Major(Document):
                 if student_major.major.pk == major.pk:
                     print('There is a student with this major, cannot delete this major.')
                     return
-        if len(major.department.majors) == 1:
-            print('Cannot remove the only major from this department, add another one before deleting this one.')
-            return
+        # TODO: In department if I make a department always have to exist with at least one major, uncomment the below
+        # code to enforce it on delete.
+        # if len(major.department.majors) == 1:
+        #     print('Cannot remove the only major from this department, add another one before deleting this one.')
+        #     return
         major.department.remove_major(major)
+        major.department.save()
         major.delete()
 
     @staticmethod
