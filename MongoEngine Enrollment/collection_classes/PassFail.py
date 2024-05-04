@@ -54,7 +54,7 @@ class PassFail(EmbeddedDocument):
 
     @staticmethod
     def list_documents() -> None:
-        for student in collection_classes.Student.objects:
+        for student in collection_classes.Student.objects().order_by('first_name', 'last_name'):
             for enrollment in student.enrollments:
                 if enrollment.passFail:
                     print(enrollment.passFail)

@@ -72,7 +72,7 @@ class Major(Document):
 
     @staticmethod
     def list_documents() -> None:
-        for major in Major.objects:
+        for major in Major.objects().order_by('name'):
             print(major)
 
     @staticmethod

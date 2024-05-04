@@ -68,7 +68,7 @@ class Course(Document):
 
     @staticmethod
     def list_documents() -> None:
-        for course in Course.objects:
+        for course in Course.objects().order_by('department', 'number'):
             print(course)
 
     @staticmethod

@@ -81,7 +81,7 @@ class Enrollment(EmbeddedDocument):
 
     @staticmethod
     def get_all_objects() -> Iterator[Enrollment]:
-        for student in collection_classes.Student.objects:
+        for student in collection_classes.Student.objects().order_by('first_name', 'last_name'):
             for enrollment in student.enrollments:
                 yield enrollment
 

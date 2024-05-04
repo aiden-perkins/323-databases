@@ -80,7 +80,7 @@ class Department(Document):
 
     @staticmethod
     def list_documents() -> None:
-        for department in Department.objects:
+        for department in Department.objects().order_by('abbreviation'):
             print(department)
 
     @staticmethod

@@ -96,7 +96,7 @@ class Section(Document):
 
     @staticmethod
     def list_documents() -> None:
-        for section in Section.objects:
+        for section in Section.objects().order_by('course', 'number', 'semester', 'year'):
             print(section)
 
     @staticmethod
