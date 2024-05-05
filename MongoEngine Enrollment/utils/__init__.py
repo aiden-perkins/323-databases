@@ -3,3 +3,5 @@ from .Menu import Menu
 from .definitions import *
 from .functions import *
 from .ComandLogger import CommandLogger
+from .CollectionInterface import CollectionInterface
+from .EmbeddedCollectionInterface import EmbeddedCollectionInterface

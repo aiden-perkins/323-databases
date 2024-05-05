@@ -1,11 +1,11 @@
 
 class Option:
-    # Allow the action to be anything, rather than just a string.
-    def __init__(self, prompt: str, action):
+    def __init__(self, prompt: str, action=None):
         """
         An option within a menu.
+
         :param prompt:  The text to tell the user what that selection will do.
-        :param exec:    The code to be executed in response to that menu select.
+        :param action:  The code to be executed in response to that menu select.
         """
         self._prompt = prompt
         self._action = action

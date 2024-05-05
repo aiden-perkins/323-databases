@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from mongoengine import ReferenceField, IntField, EnumField, StringField, ListField, Document, DENY
+from mongoengine import ReferenceField, IntField, EnumField, StringField, ListField, DENY
 
-import collection_classes
+import collection_documents
+from utils import CollectionInterface
 from utils import Semester, Building, Schedule, prompt_for_enum, unique_general, print_exception, select_general
 
 
-class Section(Document):
+class Section(CollectionInterface):
     course = ReferenceField('Course', required=True, reverse_delete_rule=DENY)
     number = IntField(required=True)
     semester = EnumField(Semester, required=True)
@@ -42,14 +43,10 @@ class Section(Document):
 
     @staticmethod
     def add_document() -> None:
-        """
-        Create a new Section instance.
-        :return: None
-        """
         success: bool = False
         while not success:
             print('Select a course: ')
-            course = collection_classes.Course.select_document()
+            course = collection_documents.Course.select_document()
             number = int(input('Section number --> '))
             semester = prompt_for_enum('Section semester --> ', Semester)
             year = int(input('Section year --> '))
@@ -82,10 +79,6 @@ class Section(Document):
 
     @staticmethod
     def delete_document() -> None:
-        """
-        Delete an existing section from the database.
-        :return: None
-        """
         section = Section.select_document()
         if section.students:
             print('This section has students attached to it, delete those first and then try again.')
@@ -103,13 +96,25 @@ class Section(Document):
     def select_document() -> Section:
         return select_general(Section)
 
-    def add_student(self, new_student: collection_classes.Student) -> None:
+    def add_student(self, new_student: collection_documents.Student) -> None:
+        """
+        Add a new student to the section.
+
+        :param new_student: The student to be added to the section.
+        :return:            None
+        """
         for student in self.students:
             if new_student.pk == student.pk:
                 return
         self.students.append(new_student)
 
-    def remove_student(self, old_student: collection_classes.Student) -> None:
+    def remove_student(self, old_student: collection_documents.Student) -> None:
+        """
+        Remove an old student from the section if it exists.
+
+        :param old_student: The old student to be removed.
+        :return:            None
+        """
         for student in self.students:
             if student.pk == old_student.pk:
                 self.students.remove(old_student)

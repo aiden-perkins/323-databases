@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from mongoengine import Document, ReferenceField, IntField, StringField, ListField, DENY
+from mongoengine import ReferenceField, IntField, StringField, ListField, DENY
 
-import collection_classes
-from utils import unique_general, print_exception, select_general
+import collection_documents
+from utils import unique_general, print_exception, select_general, CollectionInterface
 
 
-class Course(Document):
+class Course(CollectionInterface):
     department = ReferenceField('Department', required=True, reverse_delete_rule=DENY)
     number = IntField(min_value=100, max_value=699, required=True)
     name = StringField(required=True)
@@ -28,14 +28,10 @@ class Course(Document):
 
     @staticmethod
     def add_document() -> None:
-        """
-        Create a new Course instance
-        :return: None
-        """
         success: bool = False
         while not success:
             print('Select a department this course belongs to: ')
-            department = collection_classes.Department.select_document()
+            department = collection_documents.Department.select_document()
             number = int(input('Course number --> '))
             name = input('Course name --> ')
             description = input('Course description --> ')
@@ -75,13 +71,25 @@ class Course(Document):
     def select_document() -> Course:
         return select_general(Course)
 
-    def add_section(self, new_section: collection_classes.Section):
+    def add_section(self, new_section: collection_documents.Section):
+        """
+        Add a new section to the course.
+
+        :param new_section: The section to be added to the course.
+        :return:            None
+        """
         for section in self.sections:
             if new_section.pk == section.pk:
                 return
         self.sections.append(new_section)
 
-    def remove_section(self, old_section: collection_classes.Section):
+    def remove_section(self, old_section: collection_documents.Section):
+        """
+        Remove an old section from the course if it exists.
+
+        :param old_section: The old section to be removed.
+        :return:            None
+        """
         for section in self.sections:
             if old_section.pk == section.pk:
                 self.sections.remove(old_section)

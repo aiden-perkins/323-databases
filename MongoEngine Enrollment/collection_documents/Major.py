@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from mongoengine import Document, ReferenceField, StringField, DENY
+from mongoengine import ReferenceField, StringField, DENY
 
-import collection_classes
-from utils import unique_general, print_exception, select_general
+import collection_documents
+from utils import unique_general, print_exception, select_general, CollectionInterface
 
 
-class Major(Document):
+class Major(CollectionInterface):
     department = ReferenceField('Department', required=True, reverse_delete_rule=DENY)
     name = StringField(required=True)
     description = StringField(required=True)
@@ -23,14 +23,10 @@ class Major(Document):
 
     @staticmethod
     def add_document() -> None:
-        """
-        Create a new Major instance.
-        :return: None
-        """
         success: bool = False
         while not success:
             print('Select a department: ')
-            department = collection_classes.Department.select_document()
+            department = collection_documents.Department.select_document()
             name = input('Major name --> ')
             description = input('Major description --> ')
             new_major = Major(department=department, name=name, description=description)
@@ -51,21 +47,12 @@ class Major(Document):
 
     @staticmethod
     def delete_document() -> None:
-        """
-        Delete an existing major from the database.
-        :return: None
-        """
         major = Major.select_document()
-        for student in collection_classes.Student.objects:
+        for student in collection_documents.Student.objects:
             for student_major in student.studentMajors:
                 if student_major.major.pk == major.pk:
                     print('There is a student with this major, cannot delete this major.')
                     return
-        # TODO: In department if I make a department always have to exist with at least one major, uncomment the below
-        # code to enforce it on delete.
-        # if len(major.department.majors) == 1:
-        #     print('Cannot remove the only major from this department, add another one before deleting this one.')
-        #     return
         major.department.remove_major(major)
         major.department.save()
         major.delete()

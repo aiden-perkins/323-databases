@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from mongoengine import StringField, EmbeddedDocumentListField, Document
+from mongoengine import StringField, EmbeddedDocumentListField
 
-import collection_classes
-from utils import unique_general, print_exception, select_general, unique_general_embedded
+import collection_documents
+from utils import unique_general, print_exception, select_general, unique_general_embedded, CollectionInterface
 
 
-class Student(Document):
+class Student(CollectionInterface):
     lastName = StringField(db_field='last_name', required=True)
     firstName = StringField(db_field='first_name', required=True)
     email = StringField(required=True)
@@ -27,10 +27,6 @@ class Student(Document):
 
     @staticmethod
     def add_document() -> None:
-        """
-        Create a new Student instance.
-        :return: None
-        """
         success: bool = False
         while not success:
             last_name = input('Student last name --> ')
@@ -52,10 +48,6 @@ class Student(Document):
 
     @staticmethod
     def delete_document() -> None:
-        """
-        Delete an existing student from the database.
-        :return: None
-        """
         student = Student.select_document()
         if student.enrollments:
             print('This student has enrollments attached to it, delete those first and then try again.')
@@ -74,26 +66,50 @@ class Student(Document):
     def select_document() -> Student:
         return select_general(Student)
 
-    def add_enrollment(self, new_enrollment: collection_classes.Enrollment) -> None:
+    def add_enrollment(self, new_enrollment: collection_documents.Enrollment) -> None:
+        """
+        Add a new enrollment to the student.
+
+        :param new_enrollment: The enrollment to be added to the student.
+        :return:            None
+        """
         violations = unique_general_embedded(new_enrollment)
         # This check is pointless, but I left it here as a redundancy, as we already know it's unique because
         # Enrollment.add_document() checks before calling this function. This applies to all add_child() functions.
         if len(violations) < 1:
             self.enrollments.append(new_enrollment)
 
-    def remove_enrollment(self, old_enrollment: collection_classes.Enrollment) -> None:
+    def remove_enrollment(self, old_enrollment: collection_documents.Enrollment) -> None:
+        """
+        Remove an old enrollment from the student if it exists.
+
+        :param old_enrollment: The old enrollment to be removed.
+        :return:            None
+        """
         violations = unique_general_embedded(old_enrollment)
         # This check is pointless, but I left it here as a redundancy, as we already know it's in enrollments because
         # this function is called from the parent object of the enrollment. This applies to all remove_child functions.
         if len(violations) >= 1:
             self.enrollments.remove(old_enrollment)
 
-    def add_student_major(self, new_student_major: collection_classes.StudentMajor) -> None:
+    def add_student_major(self, new_student_major: collection_documents.StudentMajor) -> None:
+        """
+        Add a new student major to the student.
+
+        :param new_student_major: The student major to be added to the student.
+        :return:            None
+        """
         violations = unique_general_embedded(new_student_major)
         if len(violations) < 1:
             self.studentMajors.append(new_student_major)
 
-    def remove_student_major(self, old_student_major: collection_classes.StudentMajor) -> None:
+    def remove_student_major(self, old_student_major: collection_documents.StudentMajor) -> None:
+        """
+        Remove an old student major from the student if it exists.
+
+        :param old_student_major: The old student major to be removed.
+        :return:            None
+        """
         violations = unique_general_embedded(old_student_major)
         if len(violations) >= 1:
             self.studentMajors.remove(old_student_major)

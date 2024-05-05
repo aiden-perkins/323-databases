@@ -2,13 +2,14 @@ from __future__ import annotations
 import datetime
 from typing import Iterator
 
-from mongoengine import EmbeddedDocument, ReferenceField, DateTimeField
+from mongoengine import ReferenceField, DateTimeField
 
-import collection_classes
+import collection_documents
+from utils import EmbeddedCollectionInterface
 from utils import prompt_for_date, print_exception, select_general_embedded, unique_general_embedded
 
 
-class StudentMajor(EmbeddedDocument):
+class StudentMajor(EmbeddedCollectionInterface):
     major = ReferenceField('Major', required=True)
     declarationDate = DateTimeField(db_field='declaration_date', required=True)
 
@@ -22,20 +23,25 @@ class StudentMajor(EmbeddedDocument):
     }
 
     def __str__(self):
-        return f'{self._instance} declared {self.major} on {self.declarationDate}'
+        return f'{self.get_document()} declared {self.major} on {self.declarationDate}'
+
+    def get_parent(self) -> collection_documents.Student:
+        return self._instance
+
+    def get_document(self) -> collection_documents.Student:
+        parent = self._instance
+        while isinstance(parent, EmbeddedCollectionInterface):
+            parent = parent.get_parent()
+        return parent
 
     @staticmethod
     def add_document() -> None:
-        """
-        Create a new StudentMajor instance.
-        :return: None
-        """
         success: bool = False
         while not success:
             print('Select a major: ')
-            major = collection_classes.Major.select_document()
+            major = collection_documents.Major.select_document()
             print('Select a student: ')
-            student = collection_classes.Student.select_document()
+            student = collection_documents.Student.select_document()
             declaration_date = prompt_for_date('Date and time of the declaration: ')
             now = datetime.datetime.now()
             if declaration_date > now:
@@ -59,13 +65,9 @@ class StudentMajor(EmbeddedDocument):
 
     @staticmethod
     def delete_document() -> None:
-        """
-        Delete an existing student major from the database.
-        :return: None
-        """
         student_major = StudentMajor.select_document()
-        student_major._instance.remove_student_major(student_major)
-        student_major._instance.save()
+        student_major.get_document().remove_student_major(student_major)
+        student_major.get_document().save()
 
     @staticmethod
     def list_documents() -> None:
@@ -78,6 +80,6 @@ class StudentMajor(EmbeddedDocument):
 
     @staticmethod
     def get_all_objects() -> Iterator[StudentMajor]:
-        for student in collection_classes.Student.objects().order_by('first_name', 'last_name'):
+        for student in collection_documents.Student.objects().order_by('first_name', 'last_name'):
             for student_major in student.studentMajors:
                 yield student_major

@@ -1,3 +1,4 @@
+from __future__ import annotations
 import io
 import datetime
 from enum import EnumMeta
@@ -5,12 +6,20 @@ from pprint import pformat
 from importlib import import_module
 from typing import Iterator, Type, Any
 
-from mongoengine import NotUniqueError, ValidationError, EnumField, ReferenceField, DateTimeField, IntField, document
+from mongoengine import NotUniqueError, ValidationError, EnumField, ReferenceField, DateTimeField, IntField
 
-from utils import Option, Menu
+from utils import Option, Menu, CollectionInterface, EmbeddedCollectionInterface
 
 
-def select_general_embedded(cls: Type[document.EmbeddedDocument]) -> document.EmbeddedDocument:
+def select_general_embedded(cls: Type[EmbeddedCollectionInterface]) -> EmbeddedCollectionInterface | Any:
+    """
+    Return one instance of the class that's supplied as an input, by prompting
+    the user for the values of the selected uniqueness constraint for the
+    embedded collection corresponding to that class.
+
+    :param cls: The class that the user wants a single instance of.
+    :return:    The instance that the user selected.
+    """
     index_info = cls._meta['indexes']
     choices = []
     for i, index in enumerate(index_info):
@@ -27,18 +36,18 @@ def select_general_embedded(cls: Type[document.EmbeddedDocument]) -> document.Em
                 target = select_general(referenced_class)
                 filters[column] = target
             elif isinstance(attribute, DateTimeField):
-                filters[column] = prompt_for_date(f'search for {cls.__name__.lower()}.{column} =:')
+                filters[column] = prompt_for_date(f'search for {cls.__name__.lower()} {column} =:')
             elif isinstance(attribute, EnumField):
                 filters[column] = prompt_for_enum(
-                    f'search for {cls.__name__.lower()}.{column} =:', type(attribute.choices[0])
+                    f'search for {cls.__name__.lower()} {column} =:', type(attribute.choices[0])
                 )
             elif hasattr(attribute, '__name__') and attribute.__name__ == getattr(cls, 'parent'):
                 target = select_general(attribute)
                 filters[column] = target
             elif isinstance(attribute, IntField):
-                filters[column] = int(input(f'search for {cls.__name__.lower()}.{column} --> '))
+                filters[column] = int(input(f'search for {cls.__name__.lower()} {column} --> '))
             else:
-                filters[column] = input(f'search for {cls.__name__.lower()}.{column} --> ')
+                filters[column] = input(f'search for {cls.__name__.lower()} {column} --> ')
         results = list(embedded_object_filter(cls, filters))
         if len(results) == 1:
             return results[0]
@@ -46,7 +55,14 @@ def select_general_embedded(cls: Type[document.EmbeddedDocument]) -> document.Em
             print('Sorry, no rows found that match those criteria. Try again.')
 
 
-def get_val_from_attr(obj: document.BaseDocument, attr: list[str]) -> Any:
+def get_val_from_attr(obj: EmbeddedCollectionInterface | CollectionInterface, attr: list[str]) -> Any:
+    """
+    Return the value of the last nested attribute from the list of attributes.
+
+    :param obj:     The object to get the attribute from.
+    :param attr:    The list of nested attributes.
+    :return:        The value of the requested attribute.
+    """
     if attr[0] == 'parent':
         if len(attr) == 1:
             return getattr(obj, '_instance')
@@ -60,17 +76,20 @@ def get_val_from_attr(obj: document.BaseDocument, attr: list[str]) -> Any:
 
 def prompt_for_enum(prompt: str, cls: EnumMeta) -> Menu:
     """
-    MongoEngine attributes can be regulated with an enum.  If they are, the definition of
-    that attribute will carry the list of choices allowed by the enum (as well as the enum
-    class itself) that we can use to prompt the user for one of the valid values.  This
-    represents the 'don't let bad data happen in the first place' strategy rather than
-    wait for an exception from the database.
-    :param prompt:          A text string telling the user what they are being prompted for.
-    :param cls:             The class (not just the name) of the MongoEngine class that the
-                            enumerated attribute belongs to.
-    :return:                The enum class member that the user selected.
+    MongoEngine attributes can be regulated with an enum. If they are, the
+    definition of that attribute will carry the list of choices allowed by the
+    enum (as well as the enum class itself) that we can use to prompt the user
+    for one of the valid values. This represents the 'don't let bad data happen
+    in the first place' strategy rather than wait for an exception from the
+    database.
+
+    :param prompt:  A text string telling the user what they are being prompted
+                    for.
+    :param cls:     The class (not just the name) of the MongoEngine class that
+                    the enumerated attribute belongs to.
+    :return:        The enum class member that the user selected.
     """
-    # In python 3.11, EnumMeta is renamed to EnumType so this ensures both work.
+    # In python 3.11+, EnumMeta is renamed to EnumType so this ensures both work.
     if type(cls).__name__ in ['EnumMeta', 'EnumType']:
         enum_values = []
         for choice in cls:  # Build a menu option for each of the enum instances.
@@ -83,15 +102,17 @@ def prompt_for_enum(prompt: str, cls: EnumMeta) -> Menu:
 
 def prompt_for_date(prompt: str) -> datetime:
     """
-    Prompts the user for a complete date/time.  This will keep prompting the user
-    until they provide a valid date time stamp.
-    :param prompt: The text to display when prompting the user for the date time stamp.
-    :return: An instance of datetime.
+    Prompts the user for a complete date/time. This will keep prompting the user
+    until they provide a valid date time.
+
+    :param prompt:  What to display when prompting the user for the datetime.
+    :return:        An instance of datetime.
     """
-    # TODO: Allow the user to default to the current date & time to save time.
     print(prompt)
-    valid = False
-    while not valid:
+    while True:
+        current_time = input('Would you like to use the current date & time? (Y/N) --> ')
+        if current_time.lower() == 'y':
+            return datetime.datetime.now()
         try:
             year: int = int(input('Enter year --> '))
             month: int = int(input('Enter month number --> '))
@@ -105,17 +126,21 @@ def prompt_for_date(prompt: str) -> datetime:
             print('Please try again.')
 
 
-def get_attr_from_column(cls: Type[document.BaseDocument], column_names: list[str]) -> Any:
+def get_attr_from_column(cls: Type[CollectionInterface | EmbeddedCollectionInterface], column_names: list[str]) -> Any:
     """
-    Returns the attribute that corresponds to the given column names.  The attribute
-    name is in CamelCase, while the column name is in snake_case.  The column within a Document
-    class has the db_field property that gives us the database column name of that attribute.
-    :param cls:             The class that has an attribute corresponding to the given column_name.
-    :param column_names:     The column that we are looking for the corresponding attribute.
-    :return:                THe name of the attribute for the given column.
+    Returns the attribute that corresponds to the given column names. The
+    attribute name is in CamelCase, while the column name is in snake_case. The
+    column within a Document class has the db_field property that gives us the
+    database column name of that attribute.
+
+    :param cls:             The class that has an attribute corresponding to the
+                            given column_name.
+    :param column_names:    The column that we are looking for the corresponding
+                            attribute.
+    :return:                The name of the attribute for the given column.
     """
     if column_names[0] == 'parent':
-        new_cls = getattr(import_module('collection_classes'), getattr(cls, column_names[0]))
+        new_cls = getattr(import_module('collection_documents'), getattr(cls, column_names[0]))
         if len(column_names) == 1:
             return new_cls
         else:
@@ -129,12 +154,14 @@ def get_attr_from_column(cls: Type[document.BaseDocument], column_names: list[st
                 return get_attr_from_column(attribute.document_type, column_names[1:])
 
 
-def select_general(cls: Type[document.Document]) -> document.Document:
+def select_general(cls: Type[CollectionInterface]) -> CollectionInterface | Any:
     """
-    Return one instance of the class that's supplied as an input, by prompting the user for
-    the values of the selected uniqueness constraint for the collection corresponding to that class.
+    Return one instance of the class that's supplied as an input, by prompting
+    the user for the values of the selected uniqueness constraint for the
+    collection corresponding to that class.
+
     :param cls: The class that the user wants a single instance of.
-    :return: The instance that the user selected.
+    :return:    The instance that the user selected.
     """
     # If we were doing this directly in mongodb, we'd say collection=db[whatever collection it is]
     collection = cls._get_collection()
@@ -142,8 +169,8 @@ def select_general(cls: Type[document.Document]) -> document.Document:
     # Loop through the indexes of the collection.
     choices = []
     for index in index_info:
-        # see if the index is unique.  If not, we're not interested in using it.
-        # _id_ does not have a property named unique since _id_ is ALWAYS unique.  Hence, the order in the if statement.
+        # see if the index is unique. If not, we're not interested in using it.
+        # _id_ does not have a property named unique since _id_ is ALWAYS unique. Hence, the order in the if statement.
         if index == '_id_' or index_info[index]['unique']:
             columns = [col[0] for col in index_info[index]['key']]
             choices.append(Option(f'index: {index} - cols: {columns}', index))
@@ -167,24 +194,24 @@ def select_general(cls: Type[document.Document]) -> document.Document:
                 # I could have just said: filters[attribute_name] = select_general(attribute.document_type)
                 filters[attribute_name] = target
                 """
-                This is intentionally recursive.  If A is a parent to B and B has a reference to A,
+                This is intentionally recursive. If A is a parent to B and B has a reference to A,
                 and that reference is part of the uniqueness constraint in B that we are using to select 
                 an instance of B, and B is a parent to C and C has a reference to B, and we want to select
                 an instance of C based on the 'migrated' reference to B, then you see where the 
                 recursion comes in very handy.
                 """
             elif type(attribute).__name__ == 'DateTimeField':
-                filters[attribute_name] = prompt_for_date(f'search for {cls.__name__.lower()}.{attribute_name} =:')
+                filters[attribute_name] = prompt_for_date(f'search for {cls.__name__.lower()} {attribute_name} =:')
             elif isinstance(attribute, EnumField):
                 filters[column] = prompt_for_enum(
-                    f'search for {cls.__name__.lower()}.{column} =:', type(attribute.choices[0])
+                    f'search for {cls.__name__.lower()} {column} =:', type(attribute.choices[0])
                 )
             elif isinstance(attribute, IntField):
-                filters[attribute_name] = int(input(f'search for {cls.__name__.lower()}.{attribute_name} --> '))
+                filters[attribute_name] = int(input(f'search for {cls.__name__.lower()} {attribute_name} --> '))
             else:
                 # It's not a reference, so prompt for the literal value.
                 # This works for string, but honestly, I should convert the string depending on the type.
-                filters[attribute_name] = input(f'search for {cls.__name__.lower()}.{attribute_name} --> ')
+                filters[attribute_name] = input(f'search for {cls.__name__.lower()} {attribute_name} --> ')
         # count the number of rows that meet that criteria.
         if cls.objects(**filters).count() == 1:
             return cls.objects(**filters).first()
@@ -192,13 +219,29 @@ def select_general(cls: Type[document.Document]) -> document.Document:
             print('Sorry, no rows found that match those criteria. Try again.')
 
 
-def get_attr_name(cls: Type[document.BaseDocument], attribute: Any) -> str:
+def get_attr_name(cls: Type[CollectionInterface], attribute: Any) -> str:
+    """
+    Return the name of the attribute from the given class and attribute.
+
+    :param cls: The class that the attribute is from.
+    :param attribute: The attribute the user wants the name of.
+    :return: A string that represents the name of the attribute.
+    """
     for attr_name in dir(cls):
         if getattr(cls, attr_name) == attribute:
             return attr_name
 
 
-def embedded_object_filter(cls: Type[document.EmbeddedDocument], filters: dict[str: Any]) -> Iterator:
+def embedded_object_filter(cls: Type[EmbeddedCollectionInterface], filters: dict[str: Any]) -> Iterator:
+    """
+    Generates embedded objects that match the given dictionary of filters. If
+    there are none than the filters represent a unique object, otherwise this
+    will yield all results that match.
+
+    :param cls:     The class you want to filter from.
+    :param filters: The filters you want to compare against for any matches.
+    :return:        A generator if any objects were found.
+    """
     for embedded_object in cls.get_all_objects():
         match = True
         for column in filters:
@@ -209,7 +252,20 @@ def embedded_object_filter(cls: Type[document.EmbeddedDocument], filters: dict[s
             yield embedded_object
 
 
-def unique_general_embedded(instance: document.EmbeddedDocument) -> list[dict[str: str, str: list[str]]]:
+def unique_general_embedded(instance: EmbeddedCollectionInterface) -> list[dict[str: str, str: list[str]]]:
+    """
+    Check all uniqueness constraints on the embedded collection that instance
+    belongs to and return those uniqueness constraints that have been violated.
+    If that returned list has no members, then the instance does not duplicate
+    any documents already in the collection, and it is safe to save that
+    instance.
+
+    :param instance:    An instance of a MongoEngine class that the user wants
+                        to test against all uniqueness constraints on that
+                        embedded collection.
+    :return:            A list of the 0 or more uniqueness constraints that have
+                        been violated.
+    """
     cls = instance.__class__
     index_info = cls._meta['indexes']
     constraints = []
@@ -227,15 +283,18 @@ def unique_general_embedded(instance: document.EmbeddedDocument) -> list[dict[st
     return violated_constraints
 
 
-def unique_general(instance: document.Document) -> list[dict[str: str, str: list[str]]]:
+def unique_general(instance: CollectionInterface) -> list[dict[str: str, str: list[str]]]:
     """
-    Check all uniqueness constraints on the collection that instance belongs to and return those
-    uniqueness constraints that have been violated.  If that returned list has no members, then
-    the instance does not duplicate any documents already in the collection, and it is safe to
-    save that instance.
-    :param instance:    An instance of a MongoEngine class that the user want to test against all
-                        uniqueness constraints on that collection.
-    :return:            A list of the 0 or more uniqueness constraints that have been violated.
+    Check all uniqueness constraints on the collection that instance belongs to
+    and return those uniqueness constraints that have been violated. If that
+    returned list has no members, then the instance does not duplicate any
+    documents already in the collection, and it is safe to save that instance.
+
+    :param instance:    An instance of a MongoEngine class that the user wants
+                        to test against all uniqueness constraints on that
+                        collection.
+    :return:            A list of the 0 or more uniqueness constraints that have
+                        been violated.
     """
     # If we were doing this directly in mongodb, we'd say collection=db[whatever collection it is]
     cls = instance.__class__  # get the class from the instance.
@@ -245,7 +304,7 @@ def unique_general(instance: document.Document) -> list[dict[str: str, str: list
     constraints = []
     violated_constraints = []
     for index in index_info:  # Loop through the list of index names.
-        # see if the index is unique.  If not, we're not interested in using it.
+        # see if the index is unique. If not, we're not interested in using it.
         # _id_ does not have a property named unique since _id_ is ALWAYS unique.
         # Normally, _id_ is assigned by MongoDB, but the user COULD use that for a descriptive
         # attribute, which COULD mean that there is a document with that _id_ value already.
@@ -265,7 +324,7 @@ def unique_general(instance: document.Document) -> list[dict[str: str, str: list
         # count the number of rows that meet those criteria.
         if cls.objects(**filters).count() == 1:
             # there is a document in the collection that matches the supplied instance on all attributes
-            # of this uniqueness constraint.  So we have another uniqueness constraint violation.
+            # of this uniqueness constraint. So we have another uniqueness constraint violation.
             violated_constraints.append(constraint)
     # If the returned list of violated constraints == [], we know that we are good to insert this object.
     return violated_constraints
@@ -273,26 +332,31 @@ def unique_general(instance: document.Document) -> list[dict[str: str, str: list
 
 def print_exception(thrown_exception: Exception) -> str:
     """
-    Analyze the supplied selection and return a text string that captures what violations of the
-    schema & any uniqueness constraints that caused the input exception.  Note that the structure
-    of the exception returned from MongoEngine is much simpler in structure than the exceptions
-    that we receive from MongoDB, which makes it harder to format the exception message into a
+    Analyze the supplied selection and return a text string that captures what
+    violations of the schema & any uniqueness constraints that caused the input
+    exception. Note that the structure of the exception returned from
+    MongoEngine is much simpler in structure than the exceptions that we receive
+    from MongoDB, which makes it harder to format the exception message into a
     human-readable format easily.
+
     :param thrown_exception:    The exception that MongoDB threw.
-    :return:                    The formatted text describing the issue(s) in the exception.
+    :return:                    The formatted text describing the issue(s) in
+                                the exception.
     """
     # Use StringIO as a buffer to accumulate the output.
     with io.StringIO() as output:
         output.write('***************** Start of Exception print *****************\n')
         output.write(f'The exception is of type: {type(thrown_exception).__name__}\n')
-        # DuplicateKeyError is a subtype of WriteError.  So I have to check for DuplicateKeyError first, and then
+        # DuplicateKeyError is a subtype of WriteError. So I have to check for DuplicateKeyError first, and then
         # NOT check for WriteError to get this to work properly.
         if isinstance(thrown_exception, NotUniqueError):
-            """As near as I can see, it looks as though the exception thrown by MongoEngine for a violated
-            uniqueness constraint only returns the first uniqueness constraint.  So if there are multiple uniqueness
+            """
+            As near as I can see, it looks as though the exception thrown by MongoEngine for a violated
+            uniqueness constraint only returns the first uniqueness constraint. So if there are multiple uniqueness
             constraints that the user input violates, this function will only report the first one, which could be
             annoying since the user will not know until the resubmit their input that clears up the first uniqueness
-            constraint violation that there are others."""
+            constraint violation that there are others.
+            """
             error = thrown_exception.args[0]  # get the full text of the error message.
             message = error[error.index('index:') + 7:error.index('}')]  # trim off the unwanted parts
             index_name = message[:message.index(' ')]
