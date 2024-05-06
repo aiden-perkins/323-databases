@@ -81,7 +81,7 @@ class Department(CollectionInterface):
 
     def add_major(self, new_major: collection_documents.Major) -> None:
         """
-        Add a new major to the deparment.
+        Add a new major to the department.
 
         :param new_major: The major to be added to the deparment.
         :return:            None
